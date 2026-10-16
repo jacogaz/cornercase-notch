@@ -69,6 +69,7 @@ release() {
             fi
         else
             git merge-base --is-ancestor HEAD "$commit" || fail "$tag was made on a commit that never reached main and main has moved on; delete the tag and its release, or bump the version"
+            genuine_release "$commit" HEAD || fail "$tag is not a release commit made by the release workflow on top of main; it will not be pushed to main"
             echo "$tag's release commit never reached main; resuming"
             answer=resume
         fi

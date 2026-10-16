@@ -55,6 +55,7 @@ case "$mode" in
         if git merge-base --is-ancestor "$commit" origin/main; then
             echo "$tag is already on main"
         else
+            genuine_release "$commit" origin/main || fail "$tag is not a release commit made by the release workflow on top of main; not pushing it to main"
             git push origin "$commit:refs/heads/main"
         fi
         ;;

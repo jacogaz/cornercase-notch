@@ -121,7 +121,7 @@ scratch
 git config user.name test
 base=$(git rev-parse HEAD)
 .github/manifest.sh cornercase-plugin.toml 0.1.0 "$tmp/dist"
-git add cornercase-plugin.toml && git commit -q -m "chore: release v0.1.0 [skip ci]"
+git add cornercase-plugin.toml && git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -q -m "chore: release v0.1.0 [skip ci]"
 git tag v0.1.0
 git push -q origin v0.1.0
 tagged=$(git rev-parse HEAD)
@@ -140,6 +140,29 @@ printf 'changed' >"$tmp/dist/cornercase-notch-aarch64-apple-darwin.tar.gz"
 fails publish resume || bad "an archive that differs from the manifest's sha256 passed"
 [ ! -f "$stub/release" ] || bad "a release was made from archives that differ from the manifest"
 ok "resume refuses archives whose checksums differ from the manifest's"
+
+# --- resume: a tag on a commit that is not a genuine release commit is never pushed to main
+for kind in author source other-field; do
+    scratch
+    base=$(git rev-parse HEAD)
+    .github/manifest.sh cornercase-plugin.toml 0.1.0 "$tmp/dist"
+    bot="-c user.name=github-actions[bot] -c user.email=41898282+github-actions[bot]@users.noreply.github.com"
+    case $kind in
+        source) echo '// sneaky' >>src/main.rs; git add -A ;;
+        other-field) sed -i.bak 's/^id = "x"/id = "y"/' cornercase-plugin.toml && rm cornercase-plugin.toml.bak ;;
+    esac
+    git add -A
+    # shellcheck disable=SC2086
+    if [ "$kind" = author ]; then git commit -q -m release; else git $bot commit -q -m release; fi
+    git tag v0.1.0
+    git push -q origin v0.1.0
+    git reset -q --hard "$base"
+    fails version release || bad "a tag on a $kind-tampered commit passed the decision"
+    git checkout -q --detach v0.1.0
+    fails publish resume || bad "a tag on a $kind-tampered commit was pushed to main"
+    [ "$(git -C "$tmp/origin.git" rev-parse main)" = "$base" ] || bad "main moved for a $kind-tampered tag"
+done
+ok "a tag alone never drives a push to main"
 
 # --- resume: main moved on
 scratch
