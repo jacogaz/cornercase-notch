@@ -1,0 +1,70 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  release:
+    name: release a new version
+    runs-on: macos-14
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: decide
+        id: decide
+        run: .github/version.sh release
+
+      - name: toolchain
+        if: steps.decide.outputs.release == 'yes'
+        run: |
+          rustup toolchain install
+          rustup target add x86_64-apple-darwin aarch64-apple-darwin
+
+      - name: build
+        if: steps.decide.outputs.release == 'yes'
+        run: |
+          cargo build --release --locked --target aarch64-apple-darwin
+          cargo build --release --locked --target x86_64-apple-darwin
+
+      - name: archives
+        if: steps.decide.outputs.release == 'yes'
+        run: |
+          mkdir dist
+          for target in aarch64-apple-darwin x86_64-apple-darwin; do
+            stage=$(mktemp -d)
+            mkdir "$stage/bin"
+            install -m 755 "target/$target/release/cornercase-notch" "$stage/bin/cornercase-notch"
+            COPYFILE_DISABLE=1 tar -C "$stage" --uid 0 --gid 0 --numeric-owner -czf "dist/cornercase-notch-$target.tar.gz" bin
+            tar -tzf "dist/cornercase-notch-$target.tar.gz"
+          done
+
+      - name: release
+        if: steps.decide.outputs.release == 'yes'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n 1)
+          awk -v heading="## $version" '$0 == heading { found = 1; next } /^## / { found = 0 } found' CHANGELOG.md >notes.md
+          .github/manifest.sh cornercase-plugin.toml "$version" dist
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add cornercase-plugin.toml
+          git commit -m "chore: release v$version [skip ci]"
+          git tag "v$version"
+          git push origin "v$version"
+          gh release create "v$version" dist/*.tar.gz --title "v$version" --notes-file notes.md --verify-tag
+          git push origin HEAD:refs/heads/main
