@@ -50,15 +50,20 @@ A command keeps the screen's line boundaries and spacing (only the prompt's own 
 
 The card says what an answer did (`✓ You picked …`, `◐ Running …`, `✕ Denied …`) only after the action reports that the digit was sent: the action thread passes its result to the main thread, which dismisses the card without a success text when the re-check refused or `keys` failed. Each button holds its own action and the render it belongs to, so a click on a shape from a redrawn panel does nothing.
 
-Which agents get buttons is a rule: only where the screen parse is reliable and tested against real screens kept as fixtures.
+Every agent cornercase reports gets answering, with one rule: where the plugin can read its screen strictly. Each parser (`src/agents/<agent>/ask.rs`) is anchored to the bottom of the screen (its footer or last row is the last non-empty line), reads one prompt, and returns nothing for anything it does not know; every `Ask` carries a fingerprint of the whole prompt region that the re-check compares. A `Choice` carries the key sequence to press, sent in one `cornercase keys` call; an answer names its choice by index. Never offered, whatever the agent: a free-text or "Other" row, a row that remembers a choice (always, don't ask again, allowlist, run everything), several questions, multiple selection.
 
-| agent | buttons | why |
-|-------|---------|-----|
-| Claude Code | permission prompts and single questions | checked live on 2.1.296 and 2.1.302; a digit picks the option and submits it |
-| Codex | command approvals | checked live on 0.163.0; a digit selects and submits. Its `request_user_input` questions, patch approvals and permission requests are not recognised |
-| Gemini CLI, Grok Build | none | not checked live (not signed in, not installed) |
-| opencode | none | allow needs Enter on a highlight that is invisible in screen text |
-| Cursor CLI | none | no digits, and its labels drift between releases |
+| agent | permission | question | keys | grounded in |
+|-------|------------|----------|------|-------------|
+| Claude Code | `Yes` and the `No` row | numbered rows | digits | live 2.1.296, 2.1.302 |
+| Codex | `Yes, proceed` / `Yes, just this once`, `No, and tell Codex…` | `request_user_input`, one question, not "None of the above" | digits | live 0.163.0 |
+| opencode | `enter` for Allow once, `esc` to reject | `N. label` rows, not "Type your own answer" | `enter`, `esc`; digits | live 1.19.3 |
+| Gemini CLI | the digit of a first row that is exactly `Allow once`; the row ending `(esc)` | rows, not the last (custom) row; at most nine rows | digits | upstream snapshots of 0.64.0 |
+| Grok Build | the digit of `Yes, proceed` or `Yes`; of `No, reject (type to add feedback)` | `N (●) label` rows, not the `z` row | digits only (never Enter: its cursor may be on the always-approve row) | source; hand-made fixtures |
+| Cursor CLI | `y` when a `Run (once) (y)`-style row exists; `n` when a row shows `(esc or n)` / `(n)` | one "Clarifying Questions" question | `up`×(rows−1), `down`×(N−1), `enter` (Up and Down are clamped there, so this is position-independent); never `j`/`k` | source; hand-made fixtures |
+
+**opencode's status exception.** cornercase never reports opencode as `waiting`: during its permission prompt and its question the pane stays `working`. So the screens of opencode's working panes are read on every refresh (the worker keeps refreshing every second while one exists), and a card exists only when a prompt is recognised; it is never a bare "waiting" card. The exception is one function, `agents::polled`, next to `agents::answers`. opencode also prints a sidebar on the same lines as the prompt, so only the left column is parsed: text after the `┃` bar, cut where a run of ten spaces begins. A command line that has text on both sides of such a gap could have been cut, so `allow` is not offered for it.
+
+**opencode and Enter.** Its permission prompt has no digits and no letters, only Left/Right (which wrap), Enter and Esc. Esc rejects from any highlight. Enter picks the highlighted button, and a fresh prompt always starts on `Allow once`, so Enter on an untouched prompt is Allow once; that was checked live. The highlight is only a background colour, invisible in screen text, so a hover or an `h`/`l` typed meanwhile could have moved it. That is why Enter is offered only with the version that has an `Allow always` confirmation stage (1.x: Enter on `Allow always` opens a confirmation screen whose Esc goes back, so nothing persists), never for 2.x's `Always allow` (no such stage), and why the action reads the screen again after the press: if it shows `△ Always allow` or `△ Reject permission`, it presses Esc once, shows the pane and reports the card as not answered.
 
 The parsers are strict and anchored. Claude Code's: a permission prompt is the last ` Esc to cancel` line with numbered options under a ` Do you want to …?` line, `1. Yes` first and a `No` among them, whose number is read, never assumed; a question is the last `Enter to select · ↑/↓ to navigate · Esc to cancel` line with one tab, its question and numbered options ending in `Type something.`. Several questions, checkboxes, free text and anything else are not recognised.
 

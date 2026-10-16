@@ -29,17 +29,20 @@ Most of the time you see a **pill**: Rinco, the plugin's mascot, and one line ab
 
 ## Answering
 
-A card gets answer buttons only for agents whose screen the plugin can read reliably, checked against real screens kept as test fixtures:
+Every supported agent gets the same answering, only where the plugin can read its screen strictly. Each parser is anchored to the bottom of the screen and tested against screens kept as fixtures; a prompt it does not recognise gets `open` only.
 
-| agent | buttons | why |
-|-------|---------|-----|
-| Claude Code | permission prompts: `allow`, `deny`; single questions: one per option | checked live; a digit picks the option and submits it |
-| Codex | command approvals: `allow`, `deny` | checked live on 0.163.0; a digit selects and submits. Its questions, patch approvals and permission requests get `open` only |
-| Gemini CLI, Grok Build | `open` only | could not be checked live |
-| opencode | `open` only | allow needs Enter on a highlight that plain screen text does not show |
-| Cursor CLI | `open` only | no digits, and its labels change between releases |
+| agent | permission | single question | keys | grounded in |
+|-------|------------|-----------------|------|-------------|
+| Claude Code | `allow`, `deny` | one button per option | the option's digit | live screens (2.1.296, 2.1.302) |
+| Codex | command approvals: `allow`, `deny` | one per option (not "None of the above") | the digit | live screens (0.163.0) |
+| opencode | `allow` (only with its "Allow always" confirmation stage), `deny` | one per option (not "Type your own answer") | `enter` / `esc`; the digit | live screens (1.19.3) |
+| Gemini CLI | `allow` ("Allow once" only), `deny` | one per option (not the custom row) | the digit | its upstream snapshots (0.64.0), no live screen yet |
+| Grok Build | `allow`, `deny` | one per option (not the free-text row) | the digit | its source, hand-made fixtures, no live screen yet |
+| Cursor CLI | `allow`, `deny` | one per option (one question only) | `y` / `n`; `up`…`down`…`enter` | its source, hand-made fixtures, no live screen yet |
 
-Pressing a button types that option's digit in the pane. Several questions, checkboxes, free text and anything else get `open` only.
+Never offered, for any agent: a free-text or "Other" row, a row that remembers a choice (always allow, don't ask again, an allowlist, run everything), several questions at once, multiple selection.
+
+Pressing a button presses the keys in the table in the pane, in one `cornercase keys` call. Several questions, checkboxes, free text and anything else get `open` only.
 
 The buttons are offered only when cornercase's screen of the pane still shows the same prompt right before the digit is typed. If the prompt is gone the plugin presses nothing and shows the pane instead. The command is shown on the card, wrapped on up to three lines, and `allow` is offered only when all of it is visible and the agent did not cut it short; otherwise there is `deny` and `open`, and you read the rest in the pane.
 
@@ -49,7 +52,7 @@ The buttons are offered only when cornercase's screen of the pane still shows th
 - Local windows only: it does not run under `cornercase remote`, which has no socket on the window's machine.
 - "Looking" means your terminal app is the frontmost app. A card for the tab you are looking at is hidden, but the plugin cannot tell a different window or tab of the same terminal app from the one cornercase shows.
 - One notch per Mac: a second window waits and takes over when the first closes.
-- Only Claude Code's and Codex's prompts can be answered. Another agent gets a parser in `src/agents/<agent>/` and a line in `agents::answers` and `agents::ask_screen`.
+- Gemini CLI, Grok Build and Cursor CLI are read from their source and upstream snapshots, not from a live screen; their wording can differ in a newer release, in which case a prompt is simply not recognised and gets `open`. Another agent gets a parser in `src/agents/<agent>/` and a line in `agents::answers` and `agents::ask_screen`.
 
 ## Development
 
