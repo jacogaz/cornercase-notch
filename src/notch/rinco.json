@@ -1,0 +1,525 @@
+{
+ "name": "Rinco",
+ "size": [
+  16,
+  16
+ ],
+ "palette": {
+  "S": "#6a3ff0",
+  "P": "#875fff",
+  "L": "#b294ff",
+  "H": "#c9b8ff",
+  "T": "#16121f",
+  "C": "#45d9e8",
+  "c": "#0b8fa3",
+  "W": "#f2f0fa",
+  "R": "#ff6b8b",
+  "G": "#58e6a0",
+  "Y": "#f5d76e",
+  "D": "#2d1a7a"
+ },
+ "states": {
+  "working": {
+   "label": "Working",
+   "meaning": "Agent running. Reads the code while output scrolls.",
+   "glyph": "◐",
+   "loop": true,
+   "frames": [
+    {
+     "ms": 240,
+     "rows": [
+      "...........WC...",
+      "...HHHHHH..CC...",
+      "...LLLLLL..S....",
+      ".HLPPPPPPPPPP...",
+      ".HLPPPPPPPPPPS..",
+      ".HLPTTTTTTTTPS..",
+      ".HLPTTTTTTTTPS..",
+      ".HLPCCTTCCTTPS..",
+      ".HLPCCTTCCTTPS..",
+      "...PTTTTTTTTPS..",
+      "...PTTTTTTTTPS..",
+      "...PccTcccTTPS..",
+      "...PPPPPPPPPPS..",
+      "....SSSSSSSSS...",
+      ".....SS...SS....",
+      "................"
+     ]
+    },
+    {
+     "ms": 240,
+     "rows": [
+      "...........WC...",
+      "...HHHHHH..CC...",
+      "...LLLLLL..S....",
+      ".HLPPPPPPPPPP...",
+      ".HLPPPPPPPPPPS..",
+      ".HLPTTTTTTTTPS..",
+      ".HLPTTTTTTTTPS..",
+      ".HLPTCCTTCCTPS..",
+      ".HLPTCCTTCCTPS..",
+      "...PTTTTTTTTPS..",
+      "...PTTTTTTTTPS..",
+      "...PTcccTccTPS..",
+      "...PPPPPPPPPPS..",
+      "....SSSSSSSSS...",
+      ".....SS...SS....",
+      "................"
+     ]
+    },
+    {
+     "ms": 240,
+     "rows": [
+      "...........DD...",
+      "...HHHHHH..DD...",
+      "...LLLLLL..S....",
+      ".HLPPPPPPPPPP...",
+      ".HLPPPPPPPPPPS..",
+      ".HLPTTTTTTTTPS..",
+      ".HLPTTTTTTTTPS..",
+      ".HLPTTCCTTCCPS..",
+      ".HLPTTCCTTCCPS..",
+      "...PTTTTTTTTPS..",
+      "...PTTTTTTTTPS..",
+      "...PcTccTcccPS..",
+      "...PPPPPPPPPPS..",
+      "....SSSSSSSSS...",
+      ".....SS...SS....",
+      "................"
+     ]
+    },
+    {
+     "ms": 240,
+     "rows": [
+      "...........DD...",
+      "...HHHHHH..DD...",
+      "...LLLLLL..S....",
+      ".HLPPPPPPPPPP...",
+      ".HLPPPPPPPPPPS..",
+      ".HLPTTTTTTTTPS..",
+      ".HLPTTTTTTTTPS..",
+      ".HLPTCCTTCCTPS..",
+      ".HLPTCCTTCCTPS..",
+      "...PTTTTTTTTPS..",
+      "...PTTTTTTTTPS..",
+      "...PcccTTccTPS..",
+      "...PPPPPPPPPPS..",
+      "....SSSSSSSSS...",
+      ".....SS...SS....",
+      "................"
+     ]
+    }
+   ]
+  },
+  "needs": {
+   "label": "Needs you",
+   "meaning": "Permission or input required. Hops and waves.",
+   "glyph": "!",
+   "loop": true,
+   "frames": [
+    {
+     "ms": 170,
+     "rows": [
+      "...HHHHHH..YY...",
+      "...LLLLLL..S....",
+      ".HLPPPPPPPPPP...",
+      ".HLPPPPPPPPPPS..",
+      ".HLPTTTTTTTTPS.L",
+      ".HLPTCWTTCWTPS.P",
+      ".HLPTCCTTCCTPSP.",
+      ".HLPTCCTTCCTPSS.",
+      "...PTTTTTTTTPS..",
+      "...PTTTCCTTTPS..",
+      "...PTTTCCTTTPS..",
+      "...PPPPPPPPPPS..",
+      "....SSSSSSSSS...",
+      "................",
+      "................",
+      "................"
+     ]
+    },
+    {
+     "ms": 170,
+     "rows": [
+      "...........WY...",
+      "...HHHHHH..YY...",
+      "...LLLLLL..S....",
+      ".HLPPPPPPPPPP...",
+      ".HLPPPPPPPPPPS..",
+      ".HLPTTTTTTTTPS..",
+      ".HLPTCWTTCWTPS..",
+      ".HLPTCCTTCCTPSPL",
+      ".HLPTCCTTCCTPSS.",
+      "...PTTTTTTTTPS..",
+      "...PTTTCCTTTPS..",
+      "...PTTTCCTTTPS..",
+      "...PPPPPPPPPPS..",
+      "....SSSSSSSSS...",
+      ".....SS...SS....",
+      "................"
+     ]
+    },
+    {
+     "ms": 170,
+     "rows": [
+      "...HHHHHH..DD...",
+      "...LLLLLL..S....",
+      ".HLPPPPPPPPPP...",
+      ".HLPPPPPPPPPPS..",
+      ".HLPTTTTTTTTPS.L",
+      ".HLPTCWTTCWTPS.P",
+      ".HLPTCCTTCCTPSP.",
+      ".HLPTCCTTCCTPSS.",
+      "...PTTTTTTTTPS..",
+      "...PTTTCCTTTPS..",
+      "...PTTTCCTTTPS..",
+      "...PPPPPPPPPPS..",
+      "....SSSSSSSSS...",
+      "................",
+      "................",
+      "................"
+     ]
+    },
+    {
+     "ms": 450,
+     "rows": [
+      "...........DD...",
+      "...HHHHHH..DD...",
+      "...LLLLLL..S....",
+      ".HLPPPPPPPPPP...",
+      ".HLPPPPPPPPPPS..",
+      ".HLPTTTTTTTTPS..",
+      ".HLPTCWTTCWTPS..",
+      ".HLPTCCTTCCTPSPL",
+      ".HLPTCCTTCCTPSS.",
+      "...PTTTTTTTTPS..",
+      "...PTTTCCTTTPS..",
+      "...PTTTCCTTTPS..",
+      "...PPPPPPPPPPS..",
+      "....SSSSSSSSS...",
+      ".....SS...SS....",
+      "................"
+     ]
+    }
+   ]
+  },
+  "question": {
+   "label": "Asking",
+   "meaning": "A question with options. Looks up, thinking.",
+   "glyph": "?",
+   "loop": true,
+   "frames": [
+    {
+     "ms": 900,
+     "rows": [
+      "...........WH...",
+      "...HHHHHH..HH...",
+      "...LLLLLL..S....",
+      ".HLPPPPPPPPPP...",
+      ".HLPPPPPPPPPPS..",
+      ".HLPTWCTTWCTPS..",
+      ".HLPTCCTTCCTPS..",
+      ".HLPTCCTTCCTPS..",
+      ".HLPTTTTTTTTPS..",
+      "...PTTTTTTTTPS..",
+      "...PTTTccTTTPS..",
+      "...PTTTTTTTTPS..",
+      "...PPPPPPPPPPS..",
+      "....SSSSSSSSS...",
+      ".....SS...SS....",
+      "................"
+     ]
+    },
+    {
+     "ms": 650,
+     "rows": [
+      "...........WH...",
+      "...HHHHHH..HH...",
+      "...LLLLLL..S....",
+      ".HLPPPPPPPPPP...",
+      ".HLPPPPPPPPPPS..",
+      ".HLPWCTTWCTTPS..",
+      ".HLPCCTTCCTTPS..",
+      ".HLPCCTTCCTTPS..",
+      ".HLPTTTTTTTTPS..",
+      "...PTTTTTTTTPS..",
+      "...PTTTccTTTPS..",
+      "...PTTTTTTTTPS..",
+      "...PPPPPPPPPPS..",
+      "....SSSSSSSSS...",
+      ".....SS...SS....",
+      "................"
+     ]
+    },
+    {
+     "ms": 400,
+     "rows": [
+      "...........WH...",
+      "...HHHHHH..HH...",
+      "...LLLLLL..S....",
+      ".HLPPPPPPPPPP...",
+      ".HLPPPPPPPPPPS..",
+      ".HLPTWCTTWCTPS..",
+      ".HLPTCCTTCCTPS..",
+      ".HLPTCCTTCCTPS..",
+      ".HLPTTTTTTTTPS..",
+      "...PTTTTTTTTPS..",
+      "...PTTTccTTTPS..",
+      "...PTTTTTTTTPS..",
+      "...PPPPPPPPPPS..",
+      "....SSSSSSSSS...",
+      ".....SS...SS....",
+      "................"
+     ]
+    },
+    {
+     "ms": 650,
+     "rows": [
+      "...........WH...",
+      "...HHHHHH..HH...",
+      "...LLLLLL..S....",
+      ".HLPPPPPPPPPP...",
+      ".HLPPPPPPPPPPS..",
+      ".HLPTTWCTTWCPS..",
+      ".HLPTTCCTTCCPS..",
+      ".HLPTTCCTTCCPS..",
+      ".HLPTTTTTTTTPS..",
+      "...PTTTTTTTTPS..",
+      "...PTTTccTTTPS..",
+      "...PTTTTTTTTPS..",
+      "...PPPPPPPPPPS..",
+      "....SSSSSSSSS...",
+      ".....SS...SS....",
+      "................"
+     ]
+    }
+   ]
+  },
+  "done": {
+   "label": "Done",
+   "meaning": "Finished. A small jump of joy, then rests.",
+   "glyph": "✓",
+   "loop": false,
+   "frames": [
+    {
+     "ms": 110,
+     "rows": [
+      "...........WG...",
+      "...HHHHHH..GG...",
+      "...LLLLLL..S....",
+      ".HLPPPPPPPPPP...",
+      ".HLPPPPPPPPPPS..",
+      ".HLPTTTTTTTTPS..",
+      ".HLPTTTTTTTTPS..",
+      ".HLPTWTTTTWTPS..",
+      ".HLPCTCTTCTCPS..",
+      "...PTTTTTTTTPS..",
+      "...PTTcCCcTTPS..",
+      "...PTTTTTTTTPS..",
+      "...PRPPPPPPPRS..",
+      "....SSSSSSSSS...",
+      ".....SS...SS....",
+      "................"
+     ]
+    },
+    {
+     "ms": 150,
+     "rows": [
+      "...HHHHHH..GG...",
+      "...LLLLLL..S....",
+      ".HLPPPPPPPPPP...",
+      ".HLPPPPPPPPPPS..",
+      ".HLPTTTTTTTTPS..",
+      ".HLPTTTTTTTTPS..",
+      ".HLPTWTTTTWTPS..",
+      ".HLPCTCTTCTCPS..",
+      "...PTTTTTTTTPS..",
+      "...PTTcCCcTTPS..",
+      "...PTTTTTTTTPS..",
+      "...PRPPPPPPPRS..",
+      "....SSSSSSSSS...",
+      ".....SS...SS....",
+      "................",
+      "................"
+     ]
+    },
+    {
+     "ms": 110,
+     "rows": [
+      "...........WG...",
+      "...HHHHHH..GG...",
+      "...LLLLLL..S....",
+      ".HLPPPPPPPPPP...",
+      ".HLPPPPPPPPPPS..",
+      ".HLPTTTTTTTTPS..",
+      ".HLPTTTTTTTTPS..",
+      ".HLPTWTTTTWTPS..",
+      ".HLPCTCTTCTCPS..",
+      "...PTTTTTTTTPS..",
+      "...PTTcCCcTTPS..",
+      "...PTTTTTTTTPS..",
+      "...PRPPPPPPPRS..",
+      "....SSSSSSSSS...",
+      ".....SS...SS....",
+      "................"
+     ]
+    },
+    {
+     "ms": 150,
+     "rows": [
+      "...HHHHHH..GG...",
+      "...LLLLLL..S....",
+      ".HLPPPPPPPPPP...",
+      ".HLPPPPPPPPPPS..",
+      ".HLPTTTTTTTTPS..",
+      ".HLPTTTTTTTTPS..",
+      ".HLPTWTTTTWTPS..",
+      ".HLPCTCTTCTCPS..",
+      "...PTTTTTTTTPS..",
+      "...PTTcCCcTTPS..",
+      "...PTTTTTTTTPS..",
+      "...PRPPPPPPPRS..",
+      "....SSSSSSSSS...",
+      ".....SS...SS....",
+      "................",
+      "................"
+     ]
+    },
+    {
+     "ms": 2200,
+     "rows": [
+      "...........WG...",
+      "...HHHHHH..GG...",
+      "...LLLLLL..S....",
+      ".HLPPPPPPPPPP...",
+      ".HLPPPPPPPPPPS..",
+      ".HLPTTTTTTTTPS..",
+      ".HLPTTTTTTTTPS..",
+      ".HLPTWTTTTWTPS..",
+      ".HLPCTCTTCTCPS..",
+      "...PTTTTTTTTPS..",
+      "...PTTcCCcTTPS..",
+      "...PTTTTTTTTPS..",
+      "...PRPPPPPPPRS..",
+      "....SSSSSSSSS...",
+      ".....SS...SS....",
+      "................"
+     ]
+    }
+   ]
+  },
+  "error": {
+   "label": "Denied / failed",
+   "meaning": "You said no or it broke. Shakes it off.",
+   "glyph": "✕",
+   "loop": false,
+   "frames": [
+    {
+     "ms": 60,
+     "rows": [
+      "..........WR....",
+      "..HHHHHH..RR....",
+      "..LLLLLL..S.....",
+      "HLPPPPPPPPPP....",
+      "HLPPPPPPPPPPS...",
+      "HLPTTTTTTTTPS...",
+      "HLPRTRTTRTRPS...",
+      "HLPTRTTTTRTPS...",
+      "HLPRTRTTRTRPS...",
+      "..PTTTTTTTTPS...",
+      "..PTTRRRRTTPS...",
+      "..PTTTTTTTTPS...",
+      "..PPPPPPPPPPS...",
+      "...SSSSSSSSS....",
+      "....SS...SS.....",
+      "................"
+     ]
+    },
+    {
+     "ms": 60,
+     "rows": [
+      "............DD..",
+      "....HHHHHH..DD..",
+      "....LLLLLL..S...",
+      "..HLPPPPPPPPPP..",
+      "..HLPPPPPPPPPPS.",
+      "..HLPTTTTTTTTPS.",
+      "..HLPRTRTTRTRPS.",
+      "..HLPTRTTTTRTPS.",
+      "..HLPRTRTTRTRPS.",
+      "....PTTTTTTTTPS.",
+      "....PTTRRRRTTPS.",
+      "....PTTTTTTTTPS.",
+      "....PPPPPPPPPPS.",
+      ".....SSSSSSSSS..",
+      "......SS...SS...",
+      "................"
+     ]
+    },
+    {
+     "ms": 60,
+     "rows": [
+      "..........WR....",
+      "..HHHHHH..RR....",
+      "..LLLLLL..S.....",
+      "HLPPPPPPPPPP....",
+      "HLPPPPPPPPPPS...",
+      "HLPTTTTTTTTPS...",
+      "HLPRTRTTRTRPS...",
+      "HLPTRTTTTRTPS...",
+      "HLPRTRTTRTRPS...",
+      "..PTTTTTTTTPS...",
+      "..PTTRRRRTTPS...",
+      "..PTTTTTTTTPS...",
+      "..PPPPPPPPPPS...",
+      "...SSSSSSSSS....",
+      "....SS...SS.....",
+      "................"
+     ]
+    },
+    {
+     "ms": 60,
+     "rows": [
+      "............DD..",
+      "....HHHHHH..DD..",
+      "....LLLLLL..S...",
+      "..HLPPPPPPPPPP..",
+      "..HLPPPPPPPPPPS.",
+      "..HLPTTTTTTTTPS.",
+      "..HLPRTRTTRTRPS.",
+      "..HLPTRTTTTRTPS.",
+      "..HLPRTRTTRTRPS.",
+      "....PTTTTTTTTPS.",
+      "....PTTRRRRTTPS.",
+      "....PTTTTTTTTPS.",
+      "....PPPPPPPPPPS.",
+      ".....SSSSSSSSS..",
+      "......SS...SS...",
+      "................"
+     ]
+    },
+    {
+     "ms": 1800,
+     "rows": [
+      "...........WR...",
+      "...HHHHHH..RR...",
+      "...LLLLLL..S....",
+      ".HLPPPPPPPPPP...",
+      ".HLPPPPPPPPPPS..",
+      ".HLPTTTTTTTTPS..",
+      ".HLPRTRTTRTRPS..",
+      ".HLPTRTTTTRTPS..",
+      ".HLPRTRTTRTRPS..",
+      "...PTTTTTTTTPS..",
+      "...PTTRRRRTTPS..",
+      "...PTTTTTTTTPS..",
+      "...PPPPPPPPPPS..",
+      "....SSSSSSSSS...",
+      ".....SS...SS....",
+      "................"
+     ]
+    }
+   ]
+  }
+ }
+}

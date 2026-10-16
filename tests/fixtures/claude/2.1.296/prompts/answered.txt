@@ -1,0 +1,15 @@
+❯ Use the AskUserQuestion tool to ask me one question: which colour do I prefer, with options Red,
+  Green and Blue (single choice). Do nothing else.
+
+⏺ User answered Claude's questions:
+  ⎿  · Which colour do you prefer? → Green
+
+⏺ You picked Green.
+
+✻ Cogitated for 3s · done 5:53 PM
+                                                                                ◐ medium · /effort
+────────────────────────────────────────────────────────────────────────────────────────────────────
+❯
+────────────────────────────────────────────────────────────────────────────────────────────────────
+  notchlive (main) | Opus 5.5 (1M context) | Ctx: 4% | 5h: 12% (22:40) | Wk: 14%
+  ⏸ manual mode on · ← 2 agents

@@ -1,0 +1,46 @@
+[package]
+name = "cornercase-notch"
+version = "0.1.0"
+edition = "2024"
+description = "The notch for cornercase: Claude Code agents that need you, hanging from the top of the screen"
+license = "MIT"
+
+[[bin]]
+name = "cornercase-notch"
+path = "src/main.rs"
+
+[dependencies]
+libc = "0.2.189"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6.5"
+objc2-app-kit = { version = "0.3.2", default-features = false, features = [
+  "std", "libc", "objc2-core-foundation", "objc2-quartz-core", "NSAccessibility", "NSActionCell", "NSApplication",
+  "NSBezierPath", "NSCell", "NSColor", "NSControl", "NSEvent", "NSFont", "NSFontDescriptor", "NSGraphics",
+  "NSLayoutConstraint", "NSPanel", "NSParagraphStyle", "NSResponder", "NSRunningApplication", "NSScreen", "NSText",
+  "NSTextField", "NSTextFieldCell", "NSTrackingArea", "NSView", "NSWindow", "NSWorkspace"
+] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = [
+  "std", "NSArray", "NSDate", "NSEnumerator", "NSGeometry", "NSObject", "NSString", "NSTimer"
+] }
+objc2-quartz-core = { version = "0.3.2", default-features = false, features = ["std", "objc2-core-foundation", "CALayer"] }
+
+[dev-dependencies]
+rstest = "0.27.0"
+
+[lints.rust]
+future_incompatible = { level = "warn", priority = -1 }
+nonstandard_style = { level = "deny", priority = -2 }
+unused_qualifications = "warn"
+unreachable_pub = "warn"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+unwrap_used = "warn"
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"

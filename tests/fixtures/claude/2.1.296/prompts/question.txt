@@ -1,0 +1,23 @@
+ ▐▛███▛█   Claude Code v2.1.296
+▝▜██████▀  Opus 5.5 (1M context) · Claude Pro
+ ▝▝   ▝▝   /home/a/web-shop
+
+
+❯ Use the AskUserQuestion tool to ask me one question: which colour do I prefer, with options Red,
+  Green and Blue (single choice). Do nothing else.
+────────────────────────────────────────────────────────────────────────────────────────────────────
+ ☐ Colour
+
+Which colour do you prefer?
+
+❯ 1. Red
+     The colour red
+  2. Green
+     The colour green
+  3. Blue
+     The colour blue
+  4. Type something.
+────────────────────────────────────────────────────────────────────────────────────────────────────
+  5. Chat about this
+
+Enter to select · ↑/↓ to navigate · Esc to cancel
