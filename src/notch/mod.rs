@@ -20,6 +20,7 @@ pub(crate) struct Board {
 pub(crate) struct Card {
     pub(crate) pane: u64,
     pub(crate) title: String,
+    pub(crate) agent: String,
     pub(crate) place: String,
     pub(crate) since: Option<u64>,
     pub(crate) kind: Kind,
@@ -28,6 +29,7 @@ pub(crate) struct Card {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) enum Kind {
     Done,
+    Failed,
     Waiting,
     Asks(Ask),
 }
@@ -37,7 +39,8 @@ impl Kind {
         match self {
             Self::Asks(_) => 0,
             Self::Waiting => 1,
-            Self::Done => 2,
+            Self::Failed => 2,
+            Self::Done => 3,
         }
     }
 }

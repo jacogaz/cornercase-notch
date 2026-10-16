@@ -20,7 +20,7 @@ use crate::notch::Action;
 
 const USAGE: &str = "usage: cornercase-notch <panel | board | act '<action as JSON>'>
 
-  panel   show the notch (macOS); it is the window process of the cornercase plugin
+  panel   show the notch (macOS); cornercase starts it as the plugin's window process
   board   print the board once as JSON, with each card's tab, the visible tab and whether you look
   act     run one action, as a click would, and print what it did";
 

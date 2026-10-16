@@ -604,22 +604,27 @@ impl Notch {
             if mono { mono_label(mtm, &line, 11.0, tint) } else { label(mtm, &line, 11.5, Weight::Regular, tint) };
         field.setFrame(rect(x, y, width - CARD_H - x, LINE));
         view.addSubview(&field);
-        let place = card::subtitle(card);
-        if !place.is_empty() {
-            y -= LINE_GAP + PLACE;
-            let field = label(mtm, place, 10.0, Weight::Regular, SUBTLE);
-            field.setFrame(rect(x, y, width - CARD_H - x, PLACE));
-            view.addSubview(&field);
-        }
+        let fits = field.fittingSize().width <= width - CARD_H - x;
+        y -= LINE_GAP + PLACE;
+        let place = label(mtm, &card::subtitle(card), 10.0, Weight::Regular, SUBTLE);
+        place.setFrame(rect(x, y, width - CARD_H - x, PLACE));
+        view.addSubview(&place);
         if item.outcome.is_none() {
-            self.pills(mtm, &view, card, x, width - CARD_H, y - PILLS_TOP - PILL);
+            self.pills(mtm, &view, card, (x, width - CARD_H, fits), y - PILLS_TOP - PILL);
         }
         view
     }
 
-    fn pills(&self, mtm: MainThreadMarker, parent: &NSView, card: &Card, from: f64, right: f64, y: f64) {
+    fn pills(
+        &self,
+        mtm: MainThreadMarker,
+        parent: &NSView,
+        card: &Card,
+        (from, right, fits): (f64, f64, bool),
+        y: f64,
+    ) {
         let mut x = from;
-        for button in card::buttons(card) {
+        for button in card::buttons(card, fits) {
             let field = label(mtm, &button.label, 10.0, Weight::Bold, button.text);
             let pad = if matches!(button.press, Press::Answer(_)) { PILL_PAD } else { OPEN_PAD };
             let width = (field.fittingSize().width + 2.0 * pad).min(right - x);
@@ -738,7 +743,7 @@ impl Notch {
 }
 
 fn card_height(item: &Item) -> f64 {
-    let place = if card::subtitle(&item.card).is_empty() { 0.0 } else { LINE_GAP + PLACE };
+    let place = LINE_GAP + PLACE;
     let pills = if item.outcome.is_none() { PILLS_TOP + PILL } else { 0.0 };
     let column = TITLE + LINE_GAP + LINE + place + pills;
     2.0 * CARD_V + column.max(MASCOT)

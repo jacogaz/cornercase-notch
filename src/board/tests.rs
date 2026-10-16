@@ -50,6 +50,7 @@ fn kinds(built: &Built) -> Vec<(u64, &'static str)> {
                 e.card.pane,
                 match &e.card.kind {
                     Kind::Done => "done",
+                    Kind::Failed => "failed",
                     Kind::Waiting => "waiting",
                     Kind::Asks(ask) if ask.question => "question",
                     Kind::Asks(_) => "permission",
@@ -88,7 +89,7 @@ fn a_screen_that_cannot_be_read_is_just_waiting() {
 }
 
 #[test]
-fn screens_are_read_only_for_waiting_claude_panes() {
+fn screens_are_read_only_for_waiting_panes_of_agents_that_answer() {
     let rows = [
         claude(1, 1, "working", false),
         claude(2, 1, "waiting", false),
@@ -107,14 +108,14 @@ fn screens_are_read_only_for_waiting_claude_panes() {
         None
     });
 
-    assert_eq!((read.take(), kinds(&built)), (vec![2], vec![(2, "waiting"), (3, "done")]));
+    assert_eq!((read.take(), kinds(&built)), (vec![2], vec![(2, "waiting"), (5, "waiting"), (3, "done")]));
 }
 
 #[rstest]
 #[case::working("working")]
 #[case::shell("shell")]
 #[case::idle("idle")]
-#[case::failed("failed")]
+#[case::pending("pending")]
 fn the_rest_get_no_card(#[case] state: &str) {
     assert_eq!(built(&[&claude(1, 1, state, false)], &Tracker::default(), at(0), "answered").cards, []);
 }
@@ -316,4 +317,100 @@ fn the_screen_is_not_read_when_the_pane_already_disagrees() {
     let working = panes(&[&claude(4, 1, "working", true)]).remove(0);
 
     assert!(!still_asks(&ask, '1', Some(&working), || panic!("read a screen")));
+}
+
+fn agent(pane: u64, name: &str, status: &str) -> String {
+    format!(
+        r#"{{"pane":{pane},"tab":1,"program":"{name}","agent":"{name}","status":"{status}","project_name":"shop","workspace_name":"main"}}"#
+    )
+}
+
+const AGENTS: [&str; 7] = ["claude", "codex", "gemini", "opencode", "grok", "cursor", "aider"];
+
+#[test]
+fn every_agent_gets_waiting_failed_and_done_cards_and_none_for_the_rest() {
+    let mut rows = Vec::new();
+    for (i, name) in AGENTS.iter().enumerate() {
+        let base = 10 * (u64::try_from(i).expect("small") + 1);
+        for (n, status) in ["working", "shell", "idle", "pending", "waiting", "failed", "done"].iter().enumerate() {
+            rows.push(agent(base + u64::try_from(n).expect("small"), name, status));
+        }
+    }
+    let rows: Vec<&str> = rows.iter().map(String::as_str).collect();
+
+    let built = build(&panes(&rows), &Tracker::default(), at(0), |_| None);
+
+    let by_agent: Vec<(String, Vec<&str>)> = AGENTS
+        .iter()
+        .map(|name| {
+            let shown = built.cards.iter().filter(|e| e.card.agent == label(name)).map(|e| match e.card.kind {
+                Kind::Waiting => "waiting",
+                Kind::Failed => "failed",
+                Kind::Done => "done",
+                Kind::Asks(_) => "asks",
+            });
+            (label(name), shown.collect())
+        })
+        .collect();
+    assert!(by_agent.iter().all(|(_, shown)| shown == &["waiting", "failed", "done"]), "{by_agent:?}");
+}
+
+#[test]
+fn only_agents_that_answer_get_buttons_for_a_waiting_screen() {
+    let rows = [agent(1, "claude", "waiting"), agent(2, "codex", "waiting")];
+    let rows: Vec<&str> = rows.iter().map(String::as_str).collect();
+
+    let built = build(&panes(&rows), &Tracker::default(), at(0), |_| Some(screen("permission")));
+
+    assert_eq!(kinds(&built), [(1, "permission"), (2, "waiting")]);
+}
+
+#[test]
+fn a_pane_without_an_agent_gets_no_card() {
+    let rows = [r#"{"pane":1,"tab":1,"agent":"","status":"done"}"#, r#"{"pane":2,"tab":1,"status":"done"}"#];
+
+    assert_eq!(build(&panes(&rows), &Tracker::default(), at(0), |_| None).cards, []);
+}
+
+#[test]
+fn a_card_names_its_agent() {
+    let rows = [agent(1, "gemini", "done"), agent(2, "aider", "done")];
+    let rows: Vec<&str> = rows.iter().map(String::as_str).collect();
+
+    let built = build(&panes(&rows), &Tracker::default(), at(0), |_| None);
+
+    assert_eq!(built.cards.iter().map(|e| e.card.agent.as_str()).collect::<Vec<_>>(), ["Gemini CLI", "aider"]);
+}
+
+#[test]
+fn failed_comes_after_waiting_and_before_done() {
+    let mut tracker = Tracker::default();
+    for (pane, to, secs) in [(1, "done", 9), (2, "failed", 1), (3, "failed", 5), (4, "waiting", 2)] {
+        tracker.observe(&status(pane, "working", to), false, false, at(secs));
+    }
+    let rows = [
+        agent(1, "codex", "done"),
+        agent(2, "gemini", "failed"),
+        agent(3, "grok", "failed"),
+        agent(4, "cursor", "waiting"),
+    ];
+    let rows: Vec<&str> = rows.iter().map(String::as_str).collect();
+
+    let built = build(&panes(&rows), &tracker, at(20), |_| None);
+
+    assert_eq!(kinds(&built), [(4, "waiting"), (3, "failed"), (2, "failed"), (1, "done")]);
+}
+
+#[test]
+fn every_agent_flashes_done_when_it_finishes_out_of_sight() {
+    for name in AGENTS {
+        let mut tracker = Tracker::default();
+        tracker.observe(&status(1, "working", "idle"), true, false, at(0));
+        let rows = [agent(1, name, "idle")];
+        let rows: Vec<&str> = rows.iter().map(String::as_str).collect();
+
+        let built = build(&panes(&rows), &tracker, at(3), |_| None);
+
+        assert_eq!(kinds(&built), [(1, "done")], "{name}");
+    }
 }

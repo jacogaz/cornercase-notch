@@ -2,10 +2,10 @@ id = "jacogaz.notch"
 name = "Notch"
 version = "0.1.0"
 api = 1
-description = "Shows the Claude Code agents that need you in the macOS notch; answer their permission prompts and questions there."
+description = "A plugin for cornercase that shows the coding agents that need you in the macOS notch, and answers Claude Code's permission prompts and questions there."
 platforms = ["macos"]
 permissions = [
-  "reads every pane's status and the screen of waiting Claude Code panes",
+  "reads every pane's status and the screen of waiting agents it can answer",
   "presses a digit in a Claude Code pane when you answer from the notch",
   "shows a pane and brings your terminal forward when you click",
 ]

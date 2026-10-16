@@ -6,7 +6,14 @@ use super::*;
 use crate::ask::{Ask, Choice};
 
 fn card(kind: Kind) -> Card {
-    Card { pane: 7, title: "Fix the auth bug".into(), place: "shop › main".into(), since: None, kind }
+    Card {
+        pane: 7,
+        title: "Fix the auth bug".into(),
+        agent: "Claude Code".into(),
+        place: "shop › main".into(),
+        since: None,
+        kind,
+    }
 }
 
 fn asks(question: bool) -> Kind {
@@ -29,11 +36,13 @@ fn on(pane: u64, kind: Kind) -> Card {
 
 #[rstest]
 #[case::done(Kind::Done)]
+#[case::failed(Kind::Failed)]
 #[case::waiting(Kind::Waiting)]
 #[case::permission(asks(false))]
 #[case::question(asks(true))]
 fn every_card_opens_its_own_pane(#[case] kind: Kind) {
-    let opens: Vec<Press> = buttons(&card(kind)).into_iter().filter(|b| b.label == "open").map(|b| b.press).collect();
+    let opens: Vec<Press> =
+        buttons(&card(kind), true).into_iter().filter(|b| b.label == "open").map(|b| b.press).collect();
 
     assert_eq!(opens, vec![Press::Open(7)]);
 }
@@ -41,7 +50,7 @@ fn every_card_opens_its_own_pane(#[case] kind: Kind) {
 #[test]
 fn a_permission_offers_allow_in_green_deny_in_pink_then_open() {
     let found: Vec<(String, u32, u32)> =
-        buttons(&card(asks(false))).into_iter().map(|b| (b.label, b.fill, b.text)).collect();
+        buttons(&card(asks(false)), true).into_iter().map(|b| (b.label, b.fill, b.text)).collect();
 
     assert_eq!(
         found,
@@ -55,7 +64,7 @@ fn a_permission_offers_allow_in_green_deny_in_pink_then_open() {
 
 #[test]
 fn a_choice_answers_with_its_key() {
-    let presses: Vec<Press> = buttons(&card(asks(false))).into_iter().map(|b| b.press).collect();
+    let presses: Vec<Press> = buttons(&card(asks(false)), true).into_iter().map(|b| b.press).collect();
 
     assert!(matches!(&presses[1], Press::Answer(Action::Answer { pane: 7, key: '4', .. })));
 }
@@ -63,6 +72,7 @@ fn a_choice_answers_with_its_key() {
 #[rstest]
 #[case::done(Kind::Done, "Finished", 0x58_e6_a0)]
 #[case::waiting(Kind::Waiting, "Needs you", 0xf5_d7_6e)]
+#[case::failed(Kind::Failed, "Failed", 0xff_8a_a3)]
 #[case::permission(asks(false), "Wants to run: npm test -- auth", 0xf5_d7_6e)]
 #[case::question(asks(true), "Which colour?", 0xb2_94_ff)]
 fn the_status_line_says_what_the_agent_wants(#[case] kind: Kind, #[case] text: &str, #[case] colour: u32) {
@@ -72,6 +82,7 @@ fn the_status_line_says_what_the_agent_wants(#[case] kind: Kind, #[case] text: &
 #[rstest]
 #[case::permission(asks(false), Mood::Needs)]
 #[case::waiting(Kind::Waiting, Mood::Needs)]
+#[case::failed(Kind::Failed, Mood::Error)]
 #[case::question(asks(true), Mood::Question)]
 #[case::done(Kind::Done, Mood::Done)]
 fn rinco_shows_what_each_card_is_about(#[case] kind: Kind, #[case] expected: Mood) {
@@ -100,6 +111,7 @@ fn an_answer_shows_what_it_did(
 #[case::question(asks(true), "Fix the auth bug · Which colour?")]
 #[case::permission(asks(false), "Fix the auth bug · npm test -- auth")]
 #[case::waiting(Kind::Waiting, "Fix the auth bug needs you")]
+#[case::failed(Kind::Failed, "Fix the auth bug failed")]
 #[case::done(Kind::Done, "Fix the auth bug finished")]
 fn the_pill_says_it_in_one_line(#[case] kind: Kind, #[case] line: &str) {
     assert_eq!(summary(&card(kind)), line);
@@ -111,12 +123,35 @@ fn the_pill_counts_the_others() {
 }
 
 #[test]
-fn the_place_shows_only_when_the_title_is_not_it() {
+fn the_agent_is_named_with_the_place_unless_the_title_is_the_place() {
     let mut card = card(Kind::Done);
-    let named = subtitle(&card).to_string();
+    let named = subtitle(&card);
     card.title.clone_from(&card.place);
 
-    assert_eq!((named.as_str(), subtitle(&card)), ("shop › main", ""));
+    assert_eq!((named.as_str(), subtitle(&card)), ("Claude Code · shop › main", "Claude Code".to_string()));
+}
+
+#[test]
+fn the_pill_names_the_agent_where_the_title_is_only_the_place() {
+    let mut card = card(Kind::Waiting);
+    card.title.clone_from(&card.place);
+    card.agent = "Codex".into();
+
+    assert_eq!(summary(&card), "Codex · shop › main needs you");
+}
+
+#[test]
+fn allow_is_offered_only_when_the_whole_command_is_on_the_card() {
+    let labels = |card: &Card, fits| buttons(card, fits).into_iter().map(|b| b.label).collect::<Vec<_>>();
+    let mut unseen = card(asks(false));
+    if let Kind::Asks(ask) = &mut unseen.kind {
+        ask.detail.clear();
+    }
+
+    assert_eq!(labels(&card(asks(false)), true), ["allow", "deny", "open"]);
+    assert_eq!(labels(&card(asks(false)), false), ["deny", "open"]);
+    assert_eq!(labels(&unseen, true), ["deny", "open"]);
+    assert_eq!(labels(&card(asks(true)), false), ["Red", "Green", "open"]);
 }
 
 #[test]

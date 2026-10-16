@@ -2,7 +2,8 @@
 name = "cornercase-notch"
 version = "0.1.0"
 edition = "2024"
-description = "The notch for cornercase: Claude Code agents that need you, hanging from the top of the screen"
+description = "A cornercase plugin that shows the coding agents that need you in the macOS notch"
+repository = "https://github.com/jacogaz/cornercase-notch"
 license = "MIT"
 
 [[bin]]

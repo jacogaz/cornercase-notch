@@ -58,20 +58,26 @@ pub(crate) fn mood(card: &Card) -> Mood {
     match &card.kind {
         Kind::Asks(ask) if ask.question => Mood::Question,
         Kind::Asks(_) | Kind::Waiting => Mood::Needs,
+        Kind::Failed => Mood::Error,
         Kind::Done => Mood::Done,
     }
 }
 
-pub(crate) fn subtitle(card: &Card) -> &str {
-    if card.title == card.place { "" } else { &card.place }
+pub(crate) fn subtitle(card: &Card) -> String {
+    if card.title == card.place { card.agent.clone() } else { format!("{} · {}", card.agent, card.place) }
+}
+
+fn name(card: &Card) -> String {
+    if card.title == card.place { format!("{} · {}", card.agent, card.place) } else { card.title.clone() }
 }
 
 pub(crate) fn summary(card: &Card) -> String {
     match &card.kind {
-        Kind::Asks(ask) if ask.question || ask.detail.is_empty() => format!("{} · {}", card.title, ask.title),
-        Kind::Asks(ask) => format!("{} · {}", card.title, ask.detail),
-        Kind::Waiting => format!("{} needs you", card.title),
-        Kind::Done => format!("{} finished", card.title),
+        Kind::Asks(ask) if ask.question || ask.detail.is_empty() => format!("{} · {}", name(card), ask.title),
+        Kind::Asks(ask) => format!("{} · {}", name(card), ask.detail),
+        Kind::Waiting => format!("{} needs you", name(card)),
+        Kind::Failed => format!("{} failed", name(card)),
+        Kind::Done => format!("{} finished", name(card)),
     }
 }
 
@@ -113,6 +119,7 @@ impl Expand {
 pub(crate) fn status(card: &Card) -> (String, u32) {
     match &card.kind {
         Kind::Done => ("Finished".into(), GREEN),
+        Kind::Failed => ("Failed".into(), PINK),
         Kind::Waiting => ("Needs you".into(), YELLOW),
         Kind::Asks(ask) if ask.question => (ask.title.clone(), PURPLE),
         Kind::Asks(ask) if ask.detail.is_empty() => (format!("Wants: {}", ask.title), YELLOW),
@@ -132,16 +139,17 @@ pub(crate) fn outcome(card: &Card, key: char) -> Option<Outcome> {
     })
 }
 
-pub(crate) fn buttons(card: &Card) -> Vec<Button> {
+pub(crate) fn buttons(card: &Card, fits: bool) -> Vec<Button> {
     let button = |label: &str, press, (fill, text)| Button { label: label.to_string(), press, fill, text };
     let plain = (0x2e_2d_33, 0xff_ff_ff);
     let open = button("open", Press::Open(card.pane), plain);
     match &card.kind {
-        Kind::Done | Kind::Waiting => vec![open],
+        Kind::Done | Kind::Failed | Kind::Waiting => vec![open],
         Kind::Asks(ask) => ask
             .choices
             .iter()
             .enumerate()
+            .filter(|(i, _)| ask.question || *i > 0 || (fits && !ask.detail.is_empty()))
             .map(|(i, choice)| {
                 let action = Action::Answer { pane: card.pane, ask: ask.clone(), key: choice.key };
                 let colours = match (ask.question, i) {

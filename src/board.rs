@@ -5,16 +5,13 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use serde::Serialize;
 
 use crate::agents::claude::ask::ask_screen;
+use crate::agents::label;
 use crate::ask::Ask;
 use crate::cornercase::{Event, Pane};
 use crate::notch::{Board, Card, Kind};
 
 const CLAUDE: &str = "claude";
 const FLASH_FOR: Duration = Duration::from_secs(10);
-
-pub(crate) fn shows(agent: &str) -> bool {
-    agent == CLAUDE
-}
 
 pub(crate) fn answers(agent: &str) -> bool {
     agent == CLAUDE
@@ -95,10 +92,11 @@ pub(crate) fn build(
 ) -> Built {
     let mut cards = Vec::new();
     for pane in panes {
-        let Some(agent) = pane.agent.as_deref().filter(|agent| shows(agent)) else { continue };
+        let Some(agent) = pane.agent.as_deref().filter(|agent| !agent.is_empty()) else { continue };
         let status = pane.status.as_deref().unwrap_or_default();
         let (kind, since) = match status {
             "done" => (Kind::Done, tracker.started(pane, status)),
+            "failed" => (Kind::Failed, tracker.started(pane, status)),
             "waiting" => {
                 let ask = if answers(agent) { screen(pane.pane).and_then(|screen| ask_screen(&screen)) } else { None };
                 (ask.map_or(Kind::Waiting, Kind::Asks), tracker.started(pane, status))
@@ -112,7 +110,7 @@ pub(crate) fn build(
         let place = place(pane);
         cards.push(Entry {
             tab: pane.tab,
-            card: Card { pane: pane.pane, title: title(pane, &place), place, since, kind },
+            card: Card { pane: pane.pane, title: title(pane, &place), agent: label(agent), place, since, kind },
         });
     }
     cards.sort_by_key(|entry| (entry.card.kind.rank(), Reverse(entry.card.since)));

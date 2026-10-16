@@ -13,6 +13,7 @@ fn cards_and_actions_cross_the_pipe_as_json_lines() {
     let card = Card {
         pane: 4,
         title: "Colour preference".into(),
+        agent: "Claude Code".into(),
         place: "shop › main".into(),
         since: Some(1_791_820_339),
         kind: Kind::Asks(ask),
@@ -26,10 +27,10 @@ fn cards_and_actions_cross_the_pipe_as_json_lines() {
 }
 
 #[test]
-fn questions_come_first_then_waiting_then_done() {
+fn questions_come_first_then_waiting_then_failed_then_done() {
     let ask = Ask { question: true, title: "Which colour?".into(), detail: String::new(), choices: Vec::new() };
-    let mut kinds = vec![Kind::Done, Kind::Asks(ask.clone()), Kind::Waiting];
+    let mut kinds = vec![Kind::Done, Kind::Failed, Kind::Asks(ask.clone()), Kind::Waiting];
     kinds.sort_by_key(Kind::rank);
 
-    assert_eq!(kinds, [Kind::Asks(ask), Kind::Waiting, Kind::Done]);
+    assert_eq!(kinds, [Kind::Asks(ask), Kind::Waiting, Kind::Failed, Kind::Done]);
 }
