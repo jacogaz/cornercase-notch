@@ -256,3 +256,11 @@ fn a_command_of_several_lines_is_one_line_in_the_pill_and_needs_all_its_lines_to
     assert_eq!(summary(&card), "Fix the auth bug · echo safe ⏎ rm -rf target");
     assert_eq!([command_fits("a\nb\nc"), command_fits("a\nb\nc\nd")], [true, false]);
 }
+
+#[test]
+fn a_pane_with_an_answer_on_its_way_takes_no_other_click() {
+    let pending = [(on(7, asks(false)), '1', Instant::now())];
+
+    assert_eq!([7, 8].map(|pane| answering(&pending, pane)), [true, false]);
+    assert!(!answering(&[], 7));
+}

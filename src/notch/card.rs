@@ -130,6 +130,10 @@ pub(crate) fn status(card: &Card) -> (String, u32) {
     }
 }
 
+pub(crate) fn answering(pending: &[(Card, char, Instant)], pane: u64) -> bool {
+    pending.iter().any(|(card, _, _)| card.pane == pane)
+}
+
 pub(crate) fn command(card: &Card) -> Option<&str> {
     match &card.kind {
         Kind::Asks(ask) if !ask.question && !ask.detail.is_empty() => Some(&ask.detail),

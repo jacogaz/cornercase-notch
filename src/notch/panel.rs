@@ -352,7 +352,7 @@ impl Notch {
     }
 
     fn clicked(&self, (press, card): Click, generation: u64) {
-        if generation != self.ivars().generation.get() {
+        if generation != self.ivars().generation.get() || card::answering(&self.ivars().pending.borrow(), card.pane) {
             return;
         }
         match press {
@@ -476,6 +476,7 @@ impl Notch {
             return;
         }
         *self.ivars().shown.borrow_mut() = Some(shown);
+        self.ivars().generation.set(self.ivars().generation.get() + 1);
         let place = place(mtm);
         self.ivars().place.set(Some(place));
         let from = self.ivars().size.get();
