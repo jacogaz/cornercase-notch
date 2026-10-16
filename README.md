@@ -59,7 +59,7 @@ cornercase plugin link .       # then: cornercase plugin enable jacogaz.notch
 cargo test
 ```
 
-Without a window, `cornercase-notch board` prints the board as JSON and `cornercase-notch act '<action as JSON>'` runs one action, as a click would. Both use `$CORNERCASE_BIN` (else `cornercase` from the `PATH`). See [DESIGN.md](DESIGN.md) for how it works and for the release loop.
+Without a window, `cornercase-notch board` prints the board as JSON and `cornercase-notch act '<action as JSON>'` runs one action, as a click would. Both use `$CORNERCASE_BIN` (else `cornercase` from the `PATH`). See [DESIGN.md](DESIGN.md) for how it works and for the release loop. A pull request that changes the app bumps `version` in `Cargo.toml` and adds its `CHANGELOG.md` section; it never touches the manifest's `version` or `[download.*]` tables, which only the release commit writes.
 
 ## License
 

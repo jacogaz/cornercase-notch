@@ -17,7 +17,7 @@ All through `$CORNERCASE_BIN` (else `cornercase` from the `PATH`), as an argv, n
 - `events --json`: kept running; each line only means "something changed", plus the pane and the old and new status when it is a status event.
 - `keys --pane N <digit>` and `focus --pane N`: only on a click.
 
-It reads no files of cornercase's and never sends anything but a digit.
+It reads no files of cornercase's and never sends anything but a digit. The events child lives in the plugin's process group, which cornercase's supervisor stops as a whole, so no extra termination handling was added for it.
 
 ## The board
 
@@ -43,6 +43,12 @@ The panel hides the cards of the shown tab while you look at the window. It cann
 ## Answering and its check
 
 A click on a button runs an action on its own thread. Right before typing, the action reads the pane again: the digit is typed only when the agent is still one that `answers`, still waiting, the screen gives the same ask as the card showed and the key is one of its choices. Otherwise nothing is pressed and the pane is shown instead.
+
+"The same ask" means everything the user could have seen, not only what the card shows: an `Ask` carries a fingerprint of the whole prompt region as read (from the rule or title above it down to the footer: Codex's `Environment`, `Reason`, `Permission rule` and `Thread` lines, Claude Code's option descriptions and tip), and the re-check needs an equal one. The fingerprint is never shown. A prompt is also only recognised when its footer is the last non-empty line of the screen, so an older prompt left above newer content is not an ask.
+
+A command keeps the screen's line boundaries and spacing (only the prompt's own indentation is removed); the card shows its lines, and the pill and outcome texts join them with `⏎` for display only.
+
+The card says what an answer did (`✓ You picked …`, `◐ Running …`, `✕ Denied …`) only after the action reports that the digit was sent: the action thread passes its result to the main thread, which dismisses the card without a success text when the re-check refused or `keys` failed. Each button holds its own action and the render it belongs to, so a click on a shape from a redrawn panel does nothing.
 
 Which agents get buttons is a rule: only where the screen parse is reliable and tested against real screens kept as fixtures.
 
@@ -90,13 +96,12 @@ A permission card is needs, a question card is question, a failed card is error,
 
 ## Releases
 
-Every change to the app (`src`, `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, `cornercase-plugin.toml`) needs a new version in `Cargo.toml` and in the manifest, and a `## <version>` section in `CHANGELOG.md`; CI checks it on pull requests (`.github/version.sh check`).
+Every change to the app (`src`, `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, `cornercase-plugin.toml`) needs a new version in `Cargo.toml` and a `## <version>` section in `CHANGELOG.md`; CI checks it on pull requests (`.github/version.sh check`). A pull request bumps those two only: the manifest's own `version` and its `[download.*]` tables are written together by the release commit, so `main` never advertises an old binary under a new version (`check` fails a pull request that changes either, and a manifest whose `version` differs from the version in its own download URLs).
 
-cornercase installs a prebuilt plugin from `[download.<target>]` in the manifest, with an https URL and the archive's sha256, so the manifest of the released commit must name its own archives; a moving "latest" asset cannot work. On each push to `main`, the release workflow:
+cornercase installs a prebuilt plugin from `[download.<target>]` in the manifest, with an https URL and the archive's sha256, so the manifest of the released commit must name its own archives; a moving "latest" asset cannot work. On each push to `main`, the release workflow runs `version.sh release`, which answers one of:
 
-1. runs `version.sh release`: if `v<version>` exists it stops (and fails if the app changed since, which means the version was not bumped);
-2. builds both macOS targets and packs each as `cornercase-notch-<target>.tar.gz` holding only `bin/cornercase-notch`;
-3. rewrites the `[download.*]` tables at the end of the manifest (`.github/manifest.sh`) and commits `chore: release v<version> [skip ci]`;
-4. pushes the tag first, creates the GitHub Release on it with the archives and the changelog section, and only then pushes the commit to `main` as a fast-forward.
+- `new`: there is no `v<version>` tag. It builds both macOS targets, packs each as `cornercase-notch-<target>.tar.gz` holding only `bin/cornercase-notch` (`.github/package.sh`, byte for byte reproducible: fixed times, numeric owner, no gzip name), sets the manifest's version and `[download.*]` tables (`.github/manifest.sh`), commits `chore: release v<version> [skip ci]`, pushes the tag first, creates the GitHub Release on it with the archives and the changelog section, and only then pushes the commit to `main` as a fast-forward (`.github/publish.sh new`).
+- `resume`: the tag exists but the release is not whole: the release commit never reached `main`, or the GitHub release or one of its archives is missing. It checks the tag out, rebuilds from it, requires each archive's sha256 to equal the one the tagged manifest names (otherwise it fails and changes nothing), creates the release or uploads only the missing archives, and pushes the tagged commit to `main` if it is not there (a fast-forward; if `main` has moved past it, `version.sh` fails early and the tag and release have to be deleted or the version bumped).
+- `no`: the release is whole. If the app changed since the tag it fails with "bump the version".
 
-So `main` never names an archive that does not exist. The archives are built from the commit before the release commit, which differs only in the manifest. If `main` moved meanwhile the last push fails; the tag stays, and the next change needs a version bump. `.github/test.sh` tries the two scripts on copies. For the release commit to reach `main`, branch protection must allow `github-actions[bot]` to push.
+So `main` never names an archive that does not exist, and an interrupted release is finished by the next run instead of demanding a new version. The archives are built from the commit before the release commit, which differs only in the manifest. The rebuilt binary must be identical to the first one for a resume to be accepted; on a changed toolchain image it may not be, which fails loudly. `.github/test.sh` tries all of this in scratch repositories with a bare repository as origin and a stub `gh`. For the release commit to reach `main`, branch protection must allow `github-actions[bot]` to push.
