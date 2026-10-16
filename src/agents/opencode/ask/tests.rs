@@ -166,3 +166,42 @@ fn the_stage_a_press_may_lead_to_is_told_apart_for_backing_out() {
     let reject = screen("confirm").replace("△ Always allow", "△ Reject permission");
     assert!(stage(&reject));
 }
+
+#[test]
+fn the_sidebar_edge_is_the_footer_s_column_and_text_cannot_move_it() {
+    let suffixed = screen("question")
+        .replace("1. Red", "1. Red                                                  (a)")
+        .replace("2. Green", "2. Green                                                  (b)")
+        .replace("3. Blue", "3. Blue                                                  (c)");
+    let appended = format!("{}\n{}\n{}\n", screen("question"), " ".repeat(60) + "one", " ".repeat(60) + "two");
+
+    assert_eq!((ask_screen(&suffixed), ask_screen(&appended)), (None, None));
+}
+
+#[test]
+fn a_fake_footer_inside_the_prompt_is_not_the_edge() {
+    let fake = screen("question").replace("  ┃  1. Red", "  ┃  1. Red          • OpenCode 9.9.9");
+
+    assert_eq!(ask_screen(&fake), None);
+}
+
+#[test]
+fn lines_at_column_sixty_before_the_footer_give_no_ask() {
+    let real = screen("question");
+    let (body, footer) = real.trim_end().rsplit_once('\n').expect("a footer");
+    let inserted = format!("{body}\n{}one\n{}two\n{}three\n{footer}\n", " ".repeat(60), " ".repeat(60), " ".repeat(60));
+
+    assert!(ask_screen(&real).is_some());
+    assert_eq!(ask_screen(&inserted), None);
+}
+
+#[test]
+fn the_footer_is_found_only_as_the_last_line_with_a_version() {
+    let real = screen("question");
+    let column = real.lines().last().and_then(|line| line.chars().position(|c| c == '•'));
+
+    assert_eq!(Some(edge(&real)), column);
+    assert_eq!(edge(&real.replace("1.19.3", "2.0.0")), edge(&real));
+    assert_eq!(edge(&real.replace("1.19.3", "x")), usize::MAX);
+    assert_eq!(edge(&format!("{real}\nlast line")), usize::MAX);
+}

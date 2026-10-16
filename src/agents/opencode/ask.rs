@@ -2,7 +2,7 @@ use crate::ask::{Ask, Choice, DENY};
 
 const BAR: char = '┃';
 const GAP: usize = 10;
-const SIDEBAR_LINES: usize = 3;
+const SIDEBAR_FOOTER: &str = "• OpenCode ";
 const INDENT: &str = "  ";
 const PERMISSION_TITLE: &str = "△ Permission required";
 const BUTTONS_WITH_CONFIRMATION: &str = "Allow once   Allow always   Reject";
@@ -13,25 +13,18 @@ const FREE_TEXT: &str = "Type your own answer";
 const MULTIPLE: &str = "(select all that apply)";
 const STAGES: [&str; 2] = ["△ Always allow", "△ Reject permission"];
 
-/// Sidebar text starts at the same column on a good many lines, after a run of spaces; the least such column
-/// is where the main column ends. A screen without one is read whole, and then any text after a run of
-/// spaces in a prompt's lines gives no ask.
+/// The screen's last non-empty line is the sidebar's footer: the bar, spaces, `• OpenCode <version>`. The
+/// column of its bullet is the sidebar's left edge. It is chrome below the prompt, so prompt text cannot
+/// move it. A screen without it has no sidebar and is read whole.
 fn edge(screen: &str) -> usize {
-    let mut seen = std::collections::HashMap::new();
-    for line in screen.lines() {
-        let mut blanks = 0;
-        for (column, c) in line.chars().enumerate() {
-            if c == ' ' {
-                blanks += 1;
-                continue;
-            }
-            if blanks >= GAP {
-                *seen.entry(column).or_insert(0) += 1;
-            }
-            blanks = 0;
-        }
+    let footer = screen.lines().rfind(|line| !line.trim().is_empty()).unwrap_or_default();
+    let Some(after) = footer.strip_prefix("  ┃") else { return usize::MAX };
+    let Some(version) = after.trim_start().strip_prefix(SIDEBAR_FOOTER) else { return usize::MAX };
+    let numbered = !version.is_empty() && version.chars().all(|c| c.is_ascii_digit() || c == '.');
+    if !numbered || after.trim_start() == after {
+        return usize::MAX;
     }
-    seen.into_iter().filter(|&(_, lines)| lines >= SIDEBAR_LINES).map(|(column, _)| column).min().unwrap_or(usize::MAX)
+    footer.chars().take_while(|&c| c != '•').count()
 }
 
 /// One screen line as the main column shows it: a bar, the prompt's text, and what follows a run of ten
