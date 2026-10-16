@@ -11,10 +11,18 @@ const ELIDED: &str = "  [… ";
 const HEADERS: [&str; 4] = ["  Environment: ", "  Reason: ", "  Permission rule: ", "  Thread: "];
 const ALLOWS: [&str; 2] = ["Yes, proceed", "Yes, just this once"];
 const DENIES: &str = "No, and tell Codex what to do differently";
+const QUESTION_HEADER: &str = "  Question 1/1 (";
+const QUESTION_FOOTER: &str = "  tab to add notes | enter to submit answer | esc to interrupt";
+const QUESTION_INDENT: usize = 2;
+const NONE_OF_THE_ABOVE: &str = "None of the above";
 const COMMAND_TITLE: &str = "Run command";
 
 pub(crate) fn ask_screen(screen: &str) -> Option<Ask> {
     let lines: Vec<&str> = screen.lines().map(str::trim_end).collect();
+    permission(&lines).or_else(|| question(&lines))
+}
+
+fn permission(lines: &[&str]) -> Option<Ask> {
     let footer = lines.iter().rposition(|line| !line.is_empty())?;
     if !(lines[footer] == FOOTER || lines[footer].strip_prefix(FOOTER).is_some_and(|rest| rest == FOOTER_THREAD)) {
         return None;
@@ -36,6 +44,26 @@ pub(crate) fn ask_screen(screen: &str) -> Option<Ask> {
     choices.push(choice(DENY, deny.number)?);
     allow?;
     Some(Ask { question: false, title: COMMAND_TITLE.into(), detail: command, choices, fingerprint })
+}
+
+fn question(lines: &[&str]) -> Option<Ask> {
+    let footer = lines.iter().rposition(|line| !line.is_empty()).filter(|&i| lines[i] == QUESTION_FOOTER)?;
+    let header = lines[..footer].iter().rposition(|line| line.starts_with(QUESTION_HEADER) && line.ends_with(')'))?;
+    let blank = (header + 1..footer).find(|&i| lines[i].is_empty())?;
+    let asked: Vec<&str> =
+        lines[header + 1..blank].iter().map(|line| line.strip_prefix("  ")).collect::<Option<_>>()?;
+    let end = (0..footer).rev().find(|&i| !lines[i].is_empty())?;
+    let rows = options(&lines[blank + 1..=end], QUESTION_INDENT, false, CURSOR)?;
+    let (none, offered) = rows.split_last()?;
+    if asked.is_empty() || offered.is_empty() || !none.label.starts_with(NONE_OF_THE_ABOVE) {
+        return None;
+    }
+    let choices = offered
+        .iter()
+        .map(|row| choice(row.label.split("  ").next().unwrap_or(&row.label).trim(), row.number))
+        .collect::<Option<Vec<_>>>()?;
+    let fingerprint = lines[header..=footer].join("\n");
+    Some(Ask { question: true, title: asked.join(" "), detail: String::new(), choices, fingerprint })
 }
 
 fn command(lines: &[&str]) -> Option<(String, bool)> {

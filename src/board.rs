@@ -4,7 +4,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
 
-use crate::agents::{answers, ask_screen, label};
+use crate::agents::{ask_screen, label, polled, reads_screen};
 use crate::ask::Ask;
 use crate::cornercase::{Event, Pane};
 use crate::notch::{Board, Card, Kind};
@@ -92,10 +92,17 @@ pub(crate) fn build(
             "done" => (Kind::Done, tracker.started(pane, status)),
             "failed" => (Kind::Failed, tracker.started(pane, status)),
             "waiting" => {
-                let ask =
-                    if answers(agent) { screen(pane.pane).and_then(|screen| ask_screen(agent, &screen)) } else { None };
+                let ask = if reads_screen(agent, status) {
+                    screen(pane.pane).and_then(|screen| ask_screen(agent, &screen))
+                } else {
+                    None
+                };
                 (ask.map_or(Kind::Waiting, Kind::Asks), tracker.started(pane, status))
             }
+            _ if polled(agent, status) => match screen(pane.pane).and_then(|screen| ask_screen(agent, &screen)) {
+                Some(ask) => (Kind::Asks(ask), None),
+                None => continue,
+            },
             "idle" => match tracker.flashes.get(&pane.pane).filter(|at| flash_live(**at, now)) {
                 Some(at) => (Kind::Done, secs(*at)),
                 None => continue,
@@ -132,13 +139,19 @@ fn title(pane: &Pane, place: &str) -> String {
     named(pane.tab_name.as_deref()).filter(|name| !plain(name)).map_or_else(|| place.to_string(), str::to_string)
 }
 
-pub(crate) fn still_asks(ask: &Ask, key: char, pane: Option<&Pane>, screen: impl FnOnce() -> Option<String>) -> bool {
-    let waiting = pane.filter(|pane| pane.status.as_deref() == Some("waiting"));
-    let Some(agent) = waiting.and_then(|pane| pane.agent.as_deref()).filter(|agent| answers(agent)) else {
+pub(crate) fn still_asks(
+    ask: &Ask,
+    choice: usize,
+    pane: Option<&Pane>,
+    screen: impl FnOnce() -> Option<String>,
+) -> bool {
+    let Some((agent, status)) = pane.and_then(|pane| Some((pane.agent.as_deref()?, pane.status.as_deref()?))) else {
         return false;
     };
-    ask.choices.iter().any(|choice| choice.key == key)
-        && screen().and_then(|s| ask_screen(agent, &s)).as_ref() == Some(ask)
+    if !reads_screen(agent, status) {
+        return false;
+    }
+    choice < ask.choices.len() && screen().and_then(|s| ask_screen(agent, &s)).as_ref() == Some(ask)
 }
 
 #[cfg(test)]

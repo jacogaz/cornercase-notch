@@ -16,5 +16,11 @@ pub(crate) struct Ask {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct Choice {
     pub(crate) label: String,
-    pub(crate) key: char,
+    pub(crate) keys: Vec<String>,
+}
+
+impl Choice {
+    pub(crate) fn new(label: &str, keys: &[&str]) -> Self {
+        Self { label: label.to_string(), keys: keys.iter().map(|key| (*key).to_string()).collect() }
+    }
 }

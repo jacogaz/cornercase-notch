@@ -7,10 +7,10 @@ fn cards_and_actions_cross_the_pipe_as_json_lines() {
         question: true,
         title: "Which colour?".into(),
         detail: "Colour".into(),
-        choices: vec![Choice { label: "Red".into(), key: '1' }],
+        choices: vec![Choice::new("Red", &["1"])],
         fingerprint: String::new(),
     };
-    let action = Action::Answer { pane: 4, ask: ask.clone(), key: '1' };
+    let action = Action::Answer { pane: 4, ask: ask.clone(), choice: 0 };
     let card = Card {
         pane: 4,
         title: "Colour preference".into(),

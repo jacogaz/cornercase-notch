@@ -89,14 +89,15 @@ fn a_screen_that_cannot_be_read_is_just_waiting() {
 }
 
 #[test]
-fn screens_are_read_only_for_waiting_panes_of_agents_that_answer() {
+fn screens_are_read_only_for_waiting_panes_of_agents_that_answer_and_working_opencode_panes() {
     let rows = [
         claude(1, 1, "working", false),
         claude(2, 1, "waiting", false),
         claude(3, 1, "done", false),
         claude(4, 1, "idle", false),
         r#"{"pane":5,"tab":2,"agent":"codex","status":"waiting"}"#.to_string(),
-        r#"{"pane":7,"tab":2,"agent":"gemini","status":"waiting"}"#.to_string(),
+        r#"{"pane":7,"tab":2,"agent":"aider","status":"waiting"}"#.to_string(),
+        r#"{"pane":8,"tab":2,"agent":"opencode","status":"working"}"#.to_string(),
         r#"{"pane":6,"tab":2,"status":null}"#.to_string(),
     ];
     let read = Cell::new(Vec::new());
@@ -111,7 +112,7 @@ fn screens_are_read_only_for_waiting_panes_of_agents_that_answer() {
 
     assert_eq!(
         (read.take(), kinds(&built)),
-        (vec![2, 5], vec![(2, "waiting"), (5, "waiting"), (7, "waiting"), (3, "done")])
+        (vec![2, 5, 8], vec![(2, "waiting"), (5, "waiting"), (7, "waiting"), (3, "done")])
     );
 }
 
@@ -291,8 +292,8 @@ fn waiting() -> Pane {
 fn an_answer_is_typed_only_while_the_same_ask_is_on_the_screen() {
     let ask = ask_of("permission");
 
-    assert!(still_asks(&ask, '1', Some(&waiting()), || Some(screen("permission"))));
-    assert!(still_asks(&ask, '4', Some(&waiting()), || Some(screen("permission"))));
+    assert!(still_asks(&ask, 0, Some(&waiting()), || Some(screen("permission"))));
+    assert!(still_asks(&ask, 1, Some(&waiting()), || Some(screen("permission"))));
 }
 
 #[test]
@@ -302,14 +303,14 @@ fn an_answer_is_refused_when_anything_changed() {
     let codex = panes(&[r#"{"pane":4,"tab":1,"agent":"codex","status":"waiting"}"#]).remove(0);
 
     let refused = [
-        still_asks(&ask, '1', None, || Some(screen("permission"))),
-        still_asks(&ask, '1', Some(&working), || Some(screen("permission"))),
-        still_asks(&ask, '1', Some(&codex), || Some(screen("permission"))),
-        still_asks(&ask, '1', Some(&waiting()), || Some(screen("answered"))),
-        still_asks(&ask, '1', Some(&waiting()), || Some(screen("question"))),
-        still_asks(&ask, '1', Some(&waiting()), || None),
-        still_asks(&ask, '2', Some(&waiting()), || Some(screen("permission"))),
-        still_asks(&ask, '9', Some(&waiting()), || Some(screen("permission"))),
+        still_asks(&ask, 0, None, || Some(screen("permission"))),
+        still_asks(&ask, 0, Some(&working), || Some(screen("permission"))),
+        still_asks(&ask, 0, Some(&codex), || Some(screen("permission"))),
+        still_asks(&ask, 0, Some(&waiting()), || Some(screen("answered"))),
+        still_asks(&ask, 0, Some(&waiting()), || Some(screen("question"))),
+        still_asks(&ask, 0, Some(&waiting()), || None),
+        still_asks(&ask, 5, Some(&waiting()), || Some(screen("permission"))),
+        still_asks(&ask, 9, Some(&waiting()), || Some(screen("permission"))),
     ];
 
     assert_eq!(refused, [false; 8]);
@@ -320,7 +321,7 @@ fn the_screen_is_not_read_when_the_pane_already_disagrees() {
     let ask = ask_of("permission");
     let working = panes(&[&claude(4, 1, "working", true)]).remove(0);
 
-    assert!(!still_asks(&ask, '1', Some(&working), || panic!("read a screen")));
+    assert!(!still_asks(&ask, 0, Some(&working), || panic!("read a screen")));
 }
 
 fn agent(pane: u64, name: &str, status: &str) -> String {
@@ -425,8 +426,33 @@ fn an_answer_is_refused_when_anything_the_user_saw_changed() {
     let shown = include_str!("../../tests/fixtures/codex/0.163.0/prompts/permission.txt");
     let ask = ask_screen("codex", shown).expect("an ask");
 
-    let same = still_asks(&ask, '1', Some(&codex()), || Some(shown.to_string()));
-    let other_environment = still_asks(&ask, '1', Some(&codex()), || Some(shown.replace("local", "remote")));
+    let same = still_asks(&ask, 0, Some(&codex()), || Some(shown.to_string()));
+    let other_environment = still_asks(&ask, 0, Some(&codex()), || Some(shown.replace("local", "remote")));
 
     assert_eq!((same, other_environment), (true, false));
+}
+
+#[test]
+fn a_working_opencode_with_a_prompt_on_screen_gets_an_ask_card_and_without_one_none() {
+    let rows = [agent(1, "opencode", "working"), agent(2, "opencode", "working"), agent(3, "claude", "working")];
+    let rows: Vec<&str> = rows.iter().map(String::as_str).collect();
+    let prompt = include_str!("../../tests/fixtures/opencode/1.19.3/prompts/permission.txt");
+
+    let built = build(&panes(&rows), &Tracker::default(), at(0), |pane| (pane == 1).then(|| prompt.to_string()));
+
+    assert_eq!(kinds(&built), [(1, "permission")]);
+    assert_eq!(built.cards[0].card.since, None);
+}
+
+#[test]
+fn a_working_opencode_prompt_can_be_answered_but_a_working_claude_cannot() {
+    let prompt = include_str!("../../tests/fixtures/opencode/1.19.3/prompts/permission.txt");
+    let ask = ask_screen("opencode", prompt).expect("an ask");
+    let opencode = panes(&[&agent(1, "opencode", "working")]).remove(0);
+    let claude = panes(&[&agent(1, "claude", "working")]).remove(0);
+
+    assert_eq!(
+        [&opencode, &claude].map(|pane| still_asks(&ask, 0, Some(pane), || Some(prompt.to_string()))),
+        [true, false]
+    );
 }

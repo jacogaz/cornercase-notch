@@ -14,7 +14,7 @@ fn fixture(name: &str) -> String {
 }
 
 fn choices(ask: &Ask) -> Vec<(&str, char)> {
-    ask.choices.iter().map(|c| (c.label.as_str(), c.key)).collect()
+    ask.choices.iter().map(|c| (c.label.as_str(), c.keys[0].chars().next().expect("a key"))).collect()
 }
 
 #[test]

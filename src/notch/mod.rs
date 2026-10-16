@@ -48,7 +48,7 @@ impl Kind {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) enum Action {
     Open(u64),
-    Answer { pane: u64, ask: Ask, key: char },
+    Answer { pane: u64, ask: Ask, choice: usize },
 }
 
 #[cfg(test)]

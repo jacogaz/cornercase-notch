@@ -130,7 +130,7 @@ pub(crate) fn status(card: &Card) -> (String, u32) {
     }
 }
 
-pub(crate) fn answering(pending: &[(Card, char, Instant)], pane: u64) -> bool {
+pub(crate) fn answering(pending: &[(Card, usize, Instant)], pane: u64) -> bool {
     pending.iter().any(|(card, _, _)| card.pane == pane)
 }
 
@@ -149,9 +149,9 @@ fn one_line(command: &str) -> String {
     command.replace('\n', " ⏎ ")
 }
 
-pub(crate) fn outcome(card: &Card, key: char) -> Option<Outcome> {
+pub(crate) fn outcome(card: &Card, choice: usize) -> Option<Outcome> {
     let Kind::Asks(ask) = &card.kind else { return None };
-    let choice = ask.choices.iter().find(|c| c.key == key)?;
+    let choice = ask.choices.get(choice)?;
     Some(if ask.question {
         Outcome::Picked(choice.label.clone())
     } else if choice.label == ALLOW {
@@ -170,9 +170,10 @@ pub(crate) fn buttons(card: &Card, fits: bool) -> Vec<Button> {
         Kind::Asks(ask) => ask
             .choices
             .iter()
-            .filter(|choice| ask.question || choice.label != ALLOW || (fits && command_fits(&ask.detail)))
-            .map(|choice| {
-                let action = Action::Answer { pane: card.pane, ask: ask.clone(), key: choice.key };
+            .enumerate()
+            .filter(|(_, choice)| ask.question || choice.label != ALLOW || (fits && command_fits(&ask.detail)))
+            .map(|(index, choice)| {
+                let action = Action::Answer { pane: card.pane, ask: ask.clone(), choice: index };
                 let colours = match (ask.question, choice.label == ALLOW) {
                     (true, _) => (0x2a_21_50, 0xc9_b8_ff),
                     (false, true) => (0x1d_3a_2c, GREEN),

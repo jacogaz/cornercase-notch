@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::thread;
 use std::time::{Duration, SystemTime};
 
+use crate::agents::polled;
 use crate::board::{self, Built, Tracker};
 use crate::cornercase::{self, Event};
 use crate::log;
@@ -20,7 +21,7 @@ pub(crate) struct Shared {
 #[derive(Debug, Default)]
 struct Inbox {
     built: Option<Built>,
-    answers: Vec<(u64, char, bool)>,
+    answers: Vec<(u64, usize, bool)>,
 }
 
 impl Default for Shared {
@@ -34,11 +35,11 @@ impl Shared {
         self.inbox.lock().unwrap_or_else(PoisonError::into_inner).built.take()
     }
 
-    pub(crate) fn answered(&self, pane: u64, key: char, sent: bool) {
-        self.inbox.lock().unwrap_or_else(PoisonError::into_inner).answers.push((pane, key, sent));
+    pub(crate) fn answered(&self, pane: u64, choice: usize, sent: bool) {
+        self.inbox.lock().unwrap_or_else(PoisonError::into_inner).answers.push((pane, choice, sent));
     }
 
-    pub(crate) fn take_answers(&self) -> Vec<(u64, char, bool)> {
+    pub(crate) fn take_answers(&self) -> Vec<(u64, usize, bool)> {
         std::mem::take(&mut self.inbox.lock().unwrap_or_else(PoisonError::into_inner).answers)
     }
 
@@ -64,15 +65,19 @@ fn follow(shared: &Shared) {
         Err(e) => return log::line(&format!("could not follow the events: {e}")),
     };
     let (mut tracker, mut last, mut failed) = (Tracker::default(), None::<Built>, None::<String>);
+    let mut polling = false;
     let mut pending: Vec<Event> = Vec::new();
     loop {
         let built = rebuild(shared, &mut tracker, &pending, &mut failed);
         pending.clear();
-        if let Some(built) = built.filter(|built| last.as_ref() != Some(built)) {
+        if let Some((_, watching)) = &built {
+            polling = *watching;
+        }
+        if let Some(built) = built.map(|(built, _)| built).filter(|built| last.as_ref() != Some(built)) {
             last = Some(built.clone());
             shared.publish(built);
         }
-        let busy = last.as_ref().is_some_and(Built::waiting) || tracker.flashing(SystemTime::now());
+        let busy = polling || last.as_ref().is_some_and(Built::waiting) || tracker.flashing(SystemTime::now());
         let next = if busy {
             events.changes.recv_timeout(WHILE_WAITING)
         } else {
@@ -89,7 +94,13 @@ fn follow(shared: &Shared) {
     }
 }
 
-fn rebuild(shared: &Shared, tracker: &mut Tracker, events: &[Event], failed: &mut Option<String>) -> Option<Built> {
+/// The new board, and whether some pane has to be read on a timer because its agent raises no event for a prompt.
+fn rebuild(
+    shared: &Shared,
+    tracker: &mut Tracker,
+    events: &[Event],
+    failed: &mut Option<String>,
+) -> Option<(Built, bool)> {
     let panes = match cornercase::panes() {
         Ok(panes) => panes,
         Err(e) => {
@@ -108,7 +119,10 @@ fn rebuild(shared: &Shared, tracker: &mut Tracker, events: &[Event], failed: &mu
         cornercase::screen(pane).map_err(|e| error = Some(format!("could not read pane {pane}: {e}"))).ok()
     });
     report(failed, error);
-    Some(built)
+    let watching = panes
+        .iter()
+        .any(|pane| polled(pane.agent.as_deref().unwrap_or_default(), pane.status.as_deref().unwrap_or_default()));
+    Some((built, watching))
 }
 
 fn report(last: &mut Option<String>, now: Option<String>) {

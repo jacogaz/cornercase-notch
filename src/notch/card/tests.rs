@@ -18,9 +18,9 @@ fn card(kind: Kind) -> Card {
 
 fn asks(question: bool) -> Kind {
     let choices = if question {
-        vec![Choice { label: "Red".into(), key: '1' }, Choice { label: "Green".into(), key: '2' }]
+        vec![Choice::new("Red", &["1"]), Choice::new("Green", &["2"])]
     } else {
-        vec![Choice { label: "allow".into(), key: '1' }, Choice { label: "deny".into(), key: '4' }]
+        vec![Choice::new("allow", &["1"]), Choice::new("deny", &["4"])]
     };
     Kind::Asks(Ask {
         question,
@@ -67,7 +67,7 @@ fn a_permission_offers_allow_in_green_deny_in_pink_then_open() {
 fn a_choice_answers_with_its_key() {
     let presses: Vec<Press> = buttons(&card(asks(false)), true).into_iter().map(|b| b.press).collect();
 
-    assert!(matches!(&presses[1], Press::Answer(Action::Answer { pane: 7, key: '4', .. })));
+    assert!(matches!(&presses[1], Press::Answer(Action::Answer { pane: 7, choice: 1, .. })));
 }
 
 #[rstest]
@@ -91,18 +91,18 @@ fn rinco_shows_what_each_card_is_about(#[case] kind: Kind, #[case] expected: Moo
 }
 
 #[rstest]
-#[case::picked(asks(true), '2', Outcome::Picked("Green".into()), "✓ You picked Green", Mood::Done, false)]
-#[case::allowed(asks(false), '1', Outcome::Running("npm test -- auth".into()), "◐ Running npm test -- auth…", Mood::Working, true)]
-#[case::denied(asks(false), '4', Outcome::Denied("Claude Code".into()), "✕ Denied. Claude Code will try another way.", Mood::Error, false)]
+#[case::picked(asks(true), 1, Outcome::Picked("Green".into()), "✓ You picked Green", Mood::Done, false)]
+#[case::allowed(asks(false), 0, Outcome::Running("npm test -- auth".into()), "◐ Running npm test -- auth…", Mood::Working, true)]
+#[case::denied(asks(false), 1, Outcome::Denied("Claude Code".into()), "✕ Denied. Claude Code will try another way.", Mood::Error, false)]
 fn an_answer_shows_what_it_did(
     #[case] kind: Kind,
-    #[case] key: char,
+    #[case] choice: usize,
     #[case] expected: Outcome,
     #[case] line: &str,
     #[case] then: Mood,
     #[case] monospaced: bool,
 ) {
-    let found = outcome(&card(kind), key).expect("an outcome");
+    let found = outcome(&card(kind), choice).expect("an outcome");
 
     assert_eq!((found.line().0.as_str(), found.mood(), found.monospaced()), (line, then, monospaced));
     assert_eq!(found, expected);
@@ -219,7 +219,7 @@ fn a_denial_names_the_agent_that_was_denied() {
     let mut card = card(asks(false));
     card.agent = "Codex".into();
 
-    assert_eq!(outcome(&card, '4').map(|o| o.line().0), Some("✕ Denied. Codex will try another way.".into()));
+    assert_eq!(outcome(&card, 1).map(|o| o.line().0), Some("✕ Denied. Codex will try another way.".into()));
 }
 
 #[test]
@@ -243,7 +243,7 @@ fn deny_alone_is_still_answerable_when_the_agent_offered_no_allow() {
     }
 
     assert_eq!(buttons(&elided, true).iter().map(|b| b.label.as_str()).collect::<Vec<_>>(), ["deny", "open"]);
-    assert_eq!(outcome(&elided, '4'), Some(Outcome::Denied("Claude Code".into())));
+    assert_eq!(outcome(&elided, 0), Some(Outcome::Denied("Claude Code".into())));
 }
 
 #[test]
@@ -259,7 +259,7 @@ fn a_command_of_several_lines_is_one_line_in_the_pill_and_needs_all_its_lines_to
 
 #[test]
 fn a_pane_with_an_answer_on_its_way_takes_no_other_click() {
-    let pending = [(on(7, asks(false)), '1', Instant::now())];
+    let pending = [(on(7, asks(false)), 0, Instant::now())];
 
     assert_eq!([7, 8].map(|pane| answering(&pending, pane)), [true, false]);
     assert!(!answering(&[], 7));

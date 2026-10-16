@@ -129,7 +129,7 @@ struct Ivars {
     expand: Cell<Expand>,
     shown: RefCell<Option<Shown>>,
     generation: Cell<u64>,
-    pending: RefCell<Vec<(Card, char, Instant)>>,
+    pending: RefCell<Vec<(Card, usize, Instant)>>,
     clocks: RefCell<Vec<(Retained<NSTextField>, u64)>>,
     mascots: RefCell<Vec<Retained<Sprite>>>,
     moods: RefCell<HashMap<(u64, Mood), Instant>>,
@@ -358,8 +358,8 @@ impl Notch {
         match press {
             Press::Open(pane) => self.send(Action::Open(pane)),
             Press::Answer(action) => {
-                if let Action::Answer { key, .. } = &action {
-                    self.ivars().pending.borrow_mut().push((*card, *key, Instant::now()));
+                if let Action::Answer { choice, .. } = &action {
+                    self.ivars().pending.borrow_mut().push((*card, *choice, Instant::now()));
                 }
                 self.send(action);
             }
@@ -370,10 +370,10 @@ impl Notch {
     fn settle(&self, now: Instant) {
         let mut pending = self.ivars().pending.borrow_mut();
         let mut dismissed = self.ivars().dismissed.borrow_mut();
-        for (pane, key, sent) in self.ivars().shared.take_answers() {
-            let Some(at) = pending.iter().position(|(card, k, _)| card.pane == pane && *k == key) else { continue };
-            let (card, key, _) = pending.remove(at);
-            match card::outcome(&card, key).filter(|_| sent) {
+        for (pane, choice, sent) in self.ivars().shared.take_answers() {
+            let Some(at) = pending.iter().position(|(card, k, _)| card.pane == pane && *k == choice) else { continue };
+            let (card, choice, _) = pending.remove(at);
+            match card::outcome(&card, choice).filter(|_| sent) {
                 Some(outcome) => self.ivars().answered.borrow_mut().push((card, outcome, now)),
                 None => dismissed.push(card),
             }
@@ -441,8 +441,8 @@ impl Notch {
             action,
             move || forward.forward.store(true, Ordering::Relaxed),
             move |action, result| {
-                if let Action::Answer { pane, key, .. } = action {
-                    report.answered(*pane, *key, result.sent);
+                if let Action::Answer { pane, choice, .. } = action {
+                    report.answered(*pane, *choice, result.sent);
                 }
             },
         );

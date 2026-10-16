@@ -15,13 +15,13 @@ fn an_agent_has_a_display_name(#[case] agent: &str, #[case] name: &str) {
 }
 
 #[test]
-fn only_agents_with_a_tested_screen_parser_answer() {
-    let answering: Vec<&str> = ["claude", "codex", "gemini", "opencode", "grok", "cursor", "aider"]
+fn every_agent_cornercase_knows_answers() {
+    let answering: Vec<&str> = ["claude", "codex", "opencode", "gemini", "grok", "cursor", "aider"]
         .into_iter()
         .filter(|a| answers(a))
         .collect();
 
-    assert_eq!(answering, ["claude", "codex"]);
+    assert_eq!(answering, ["claude", "codex", "opencode", "gemini", "grok", "cursor"]);
 }
 
 #[test]

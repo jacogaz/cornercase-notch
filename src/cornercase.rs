@@ -83,8 +83,11 @@ pub(crate) fn screen(pane: u64) -> io::Result<String> {
     run(&["read", "--pane", &pane.to_string()])
 }
 
-pub(crate) fn keys(pane: u64, key: char) -> io::Result<()> {
-    run(&["keys", "--pane", &pane.to_string(), &key.to_string()]).map(drop)
+pub(crate) fn keys(pane: u64, keys: &[String]) -> io::Result<()> {
+    let pane = pane.to_string();
+    let mut args = vec!["keys", "--pane", &pane];
+    args.extend(keys.iter().map(String::as_str));
+    run(&args).map(drop)
 }
 
 pub(crate) fn focus(pane: u64) -> io::Result<()> {

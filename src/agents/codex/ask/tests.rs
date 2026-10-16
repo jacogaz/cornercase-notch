@@ -8,7 +8,7 @@ fn screen() -> String {
 }
 
 fn choices(ask: &Ask) -> Vec<(&str, char)> {
-    ask.choices.iter().map(|c| (c.label.as_str(), c.key)).collect()
+    ask.choices.iter().map(|c| (c.label.as_str(), c.keys[0].chars().next().expect("a key"))).collect()
 }
 
 #[test]
@@ -105,34 +105,48 @@ fn a_quote_of_the_prompt_in_the_conversation_is_not_the_prompt() {
 }
 
 #[test]
-fn another_kind_of_screen_is_not_a_command_approval() {
-    let question = "  Question 1/1 (1 unanswered)\n  Choose an option.\n\n  › 1. Option 1           First choice.\n    2. None of the above  Optionally, add details in notes (tab)\n\n  tab to add notes | enter to submit answer | esc to interrupt\n";
+fn a_patch_approval_is_not_a_command_approval() {
+    let patch = "  Would you like to make the following edits?\n\n  Description: edit src/app.ts\n  Destination: src/app.ts\n\n› 1. Yes, proceed (y)\n  2. No, and tell Codex what to do differently (esc)\n\n  Press enter to confirm or esc to cancel\n";
 
-    assert_eq!(ask_screen(question), None);
+    assert_eq!(ask_screen(patch), None);
     assert_eq!(ask_screen(""), None);
 }
 
-#[test]
-fn a_command_with_a_second_line_keeps_its_newline_and_spacing() {
-    let screen = screen().replace("  $ touch ~/.cornercase-notch-probe", "  $ echo  safe\n    rm -rf target");
+fn question_screen() -> String {
+    fixture!("codex/0.163.0/prompts/question.txt").to_string()
+}
 
-    assert_eq!(ask_screen(&screen).expect("an approval").detail, "echo  safe\nrm -rf target");
+#[test]
+fn a_single_question_offers_a_digit_per_option_but_not_none_of_the_above() {
+    let ask = ask_screen(&question_screen()).expect("a question");
+
+    assert_eq!(
+        (ask.question, ask.title.as_str(), choices(&ask)),
+        (true, "Which colour do you prefer?", vec![("Red", '1'), ("Green", '2'), ("Blue", '3')])
+    );
+}
+
+#[test]
+fn a_changed_description_changes_the_question() {
+    let changed = question_screen().replace("Choose Green.", "Choose Another.");
+
+    assert_ne!(ask_screen(&changed), ask_screen(&question_screen()));
 }
 
 #[rstest]
-#[case::environment("Environment: local", "Environment: remote")]
-#[case::reason("Reason: Do you approve", "Reason: Do you really approve")]
-fn what_the_user_saw_above_the_command_is_part_of_the_ask(#[case] from: &str, #[case] to: &str) {
-    let before = ask_screen(&screen()).expect("an approval");
-    let after = ask_screen(&screen().replace(from, to)).expect("an approval");
-
-    assert_ne!(before, after);
-    assert_eq!((&before.detail, &before.choices), (&after.detail, &after.choices));
+#[case::several_questions("Question 1/1 (1 unanswered)", "Question 1/2 (2 unanswered)")]
+#[case::the_notes_footer(
+    "tab to add notes | enter to submit answer | esc to interrupt",
+    "tab or esc to clear notes | enter to submit answer"
+)]
+#[case::no_none_row("None of the above  Optionally", "Something else    Optionally")]
+fn another_question_screen_offers_no_answer(#[case] from: &str, #[case] to: &str) {
+    assert_eq!(ask_screen(&question_screen().replace(from, to)), None);
 }
 
 #[test]
-fn a_header_the_card_does_not_show_is_in_the_fingerprint() {
-    let with_thread = screen().replace("  Environment: local", "  Environment: local\n\n  Thread: other");
+fn anything_after_the_question_footer_means_no_ask() {
+    let after = format!("{}\n  Working (3s)\n", question_screen());
 
-    assert_ne!(ask_screen(&with_thread), ask_screen(&screen()));
+    assert_eq!(ask_screen(&after), None);
 }

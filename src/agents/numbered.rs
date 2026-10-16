@@ -45,5 +45,5 @@ fn option(line: &str, cursor_mark: char) -> Option<(bool, u32, &str)> {
 }
 
 pub(super) fn choice(label: &str, number: u32) -> Option<Choice> {
-    Some(Choice { label: label.to_string(), key: char::from_digit(number, 10)? })
+    Some(Choice { label: label.to_string(), keys: vec![char::from_digit(number, 10)?.to_string()] })
 }
