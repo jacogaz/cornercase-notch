@@ -73,7 +73,7 @@ fn a_choice_answers_with_its_key() {
 #[case::done(Kind::Done, "Finished", 0x58_e6_a0)]
 #[case::waiting(Kind::Waiting, "Needs you", 0xf5_d7_6e)]
 #[case::failed(Kind::Failed, "Failed", 0xff_8a_a3)]
-#[case::permission(asks(false), "Wants to run: npm test -- auth", 0xf5_d7_6e)]
+#[case::permission(asks(false), "Wants to run:", 0xf5_d7_6e)]
 #[case::question(asks(true), "Which colour?", 0xb2_94_ff)]
 fn the_status_line_says_what_the_agent_wants(#[case] kind: Kind, #[case] text: &str, #[case] colour: u32) {
     assert_eq!(status(&card(kind)), (text.to_string(), colour));
@@ -92,7 +92,7 @@ fn rinco_shows_what_each_card_is_about(#[case] kind: Kind, #[case] expected: Moo
 #[rstest]
 #[case::picked(asks(true), '2', Outcome::Picked("Green".into()), "✓ You picked Green", Mood::Done, false)]
 #[case::allowed(asks(false), '1', Outcome::Running("npm test -- auth".into()), "◐ Running npm test -- auth…", Mood::Working, true)]
-#[case::denied(asks(false), '4', Outcome::Denied, "✕ Denied. Claude will try another way.", Mood::Error, false)]
+#[case::denied(asks(false), '4', Outcome::Denied("Claude Code".into()), "✕ Denied. Claude Code will try another way.", Mood::Error, false)]
 fn an_answer_shows_what_it_did(
     #[case] kind: Kind,
     #[case] key: char,
@@ -148,7 +148,13 @@ fn allow_is_offered_only_when_the_whole_command_is_on_the_card() {
         ask.detail.clear();
     }
 
+    let mut long = card(asks(false));
+    if let Kind::Asks(ask) = &mut long.kind {
+        ask.detail = "x".repeat(MAX_COMMAND + 1);
+    }
+
     assert_eq!(labels(&card(asks(false)), true), ["allow", "deny", "open"]);
+    assert_eq!(labels(&long, true), ["deny", "open"]);
     assert_eq!(labels(&card(asks(false)), false), ["deny", "open"]);
     assert_eq!(labels(&unseen, true), ["deny", "open"]);
     assert_eq!(labels(&card(asks(true)), false), ["Red", "Green", "open"]);
@@ -205,4 +211,36 @@ mod expand {
 #[case::days(3 * 86_400, "3d")]
 fn ago_is_short(#[case] secs: u64, #[case] text: &str) {
     assert_eq!(ago(secs), text);
+}
+
+#[test]
+fn a_denial_names_the_agent_that_was_denied() {
+    let mut card = card(asks(false));
+    card.agent = "Codex".into();
+
+    assert_eq!(outcome(&card, '4').map(|o| o.line().0), Some("✕ Denied. Codex will try another way.".into()));
+}
+
+#[test]
+fn the_command_is_shown_apart_only_for_a_permission_with_one() {
+    let mut bare = card(asks(false));
+    if let Kind::Asks(ask) = &mut bare.kind {
+        ask.detail.clear();
+    }
+
+    assert_eq!(
+        [card(asks(false)), card(asks(true)), bare, card(Kind::Waiting)].map(|c| command(&c).map(str::to_string)),
+        [Some("npm test -- auth".to_string()), None, None, None]
+    );
+}
+
+#[test]
+fn deny_alone_is_still_answerable_when_the_agent_offered_no_allow() {
+    let mut elided = card(asks(false));
+    if let Kind::Asks(ask) = &mut elided.kind {
+        ask.choices.retain(|c| c.label == "deny");
+    }
+
+    assert_eq!(buttons(&elided, true).iter().map(|b| b.label.as_str()).collect::<Vec<_>>(), ["deny", "open"]);
+    assert_eq!(outcome(&elided, '4'), Some(Outcome::Denied("Claude Code".into())));
 }

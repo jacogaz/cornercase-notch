@@ -2,7 +2,10 @@ use std::time::{Duration, Instant};
 
 use super::rinco::Mood;
 use super::{Action, Card, Kind};
+use crate::ask::ALLOW;
 
+pub(crate) const COMMAND_LINES: usize = 3;
+const MAX_COMMAND: usize = 100;
 const DONE_FOR: Duration = Duration::from_millis(3500);
 const EXPAND_FOR: Duration = Duration::from_secs(4);
 const GREEN: u32 = 0x58_e6_a0;
@@ -29,7 +32,7 @@ pub(crate) struct Button {
 pub(crate) enum Outcome {
     Picked(String),
     Running(String),
-    Denied,
+    Denied(String),
 }
 
 impl Outcome {
@@ -37,7 +40,7 @@ impl Outcome {
         match self {
             Self::Picked(option) => (format!("✓ You picked {option}"), GREEN),
             Self::Running(command) => (format!("◐ Running {command}…"), CYAN),
-            Self::Denied => ("✕ Denied. Claude will try another way.".into(), PINK),
+            Self::Denied(agent) => (format!("✕ Denied. {agent} will try another way."), PINK),
         }
     }
 
@@ -45,7 +48,7 @@ impl Outcome {
         match self {
             Self::Picked(_) => Mood::Done,
             Self::Running(_) => Mood::Working,
-            Self::Denied => Mood::Error,
+            Self::Denied(_) => Mood::Error,
         }
     }
 
@@ -123,19 +126,30 @@ pub(crate) fn status(card: &Card) -> (String, u32) {
         Kind::Waiting => ("Needs you".into(), YELLOW),
         Kind::Asks(ask) if ask.question => (ask.title.clone(), PURPLE),
         Kind::Asks(ask) if ask.detail.is_empty() => (format!("Wants: {}", ask.title), YELLOW),
-        Kind::Asks(ask) => (format!("Wants to run: {}", ask.detail), YELLOW),
+        Kind::Asks(_) => ("Wants to run:".into(), YELLOW),
     }
+}
+
+pub(crate) fn command(card: &Card) -> Option<&str> {
+    match &card.kind {
+        Kind::Asks(ask) if !ask.question && !ask.detail.is_empty() => Some(&ask.detail),
+        _ => None,
+    }
+}
+
+pub(crate) fn command_fits(command: &str) -> bool {
+    !command.is_empty() && command.chars().count() <= MAX_COMMAND
 }
 
 pub(crate) fn outcome(card: &Card, key: char) -> Option<Outcome> {
     let Kind::Asks(ask) = &card.kind else { return None };
-    let choice = ask.choices.iter().position(|c| c.key == key)?;
+    let choice = ask.choices.iter().find(|c| c.key == key)?;
     Some(if ask.question {
-        Outcome::Picked(ask.choices[choice].label.clone())
-    } else if choice == 0 {
+        Outcome::Picked(choice.label.clone())
+    } else if choice.label == ALLOW {
         Outcome::Running(if ask.detail.is_empty() { ask.title.clone() } else { ask.detail.clone() })
     } else {
-        Outcome::Denied
+        Outcome::Denied(card.agent.clone())
     })
 }
 
@@ -148,14 +162,13 @@ pub(crate) fn buttons(card: &Card, fits: bool) -> Vec<Button> {
         Kind::Asks(ask) => ask
             .choices
             .iter()
-            .enumerate()
-            .filter(|(i, _)| ask.question || *i > 0 || (fits && !ask.detail.is_empty()))
-            .map(|(i, choice)| {
+            .filter(|choice| ask.question || choice.label != ALLOW || (fits && command_fits(&ask.detail)))
+            .map(|choice| {
                 let action = Action::Answer { pane: card.pane, ask: ask.clone(), key: choice.key };
-                let colours = match (ask.question, i) {
+                let colours = match (ask.question, choice.label == ALLOW) {
                     (true, _) => (0x2a_21_50, 0xc9_b8_ff),
-                    (false, 0) => (0x1d_3a_2c, GREEN),
-                    (false, _) => (0x45_20_2b, PINK),
+                    (false, true) => (0x1d_3a_2c, GREEN),
+                    (false, false) => (0x45_20_2b, PINK),
                 };
                 button(&choice.label, Press::Answer(action), colours)
             })

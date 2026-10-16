@@ -56,6 +56,8 @@ const TIME: f64 = 26.0;
 const NO_NOTCH_WIDTH: f64 = 120.0;
 const NO_NOTCH_HEIGHT: f64 = 1.0;
 const MAX_SHOWN: usize = 3;
+const TEXT_WIDTH: f64 = WIDTH - 2.0 * SIDE - CARD_H - (CARD_H + MASCOT + MASCOT_GAP);
+const COMMAND_SIZE: f64 = 10.5;
 const RESULT_FOR: Duration = Duration::from_millis(1200);
 const POLL_EVERY: f64 = 0.1;
 const FRAME_EVERY: f64 = 1.0 / 60.0;
@@ -505,7 +507,7 @@ impl Notch {
     fn cards(&self, mtm: MainThreadMarker, items: &[Item], top: f64) -> (Retained<NSView>, Size) {
         let shown = &items[..items.len().min(MAX_SHOWN)];
         let more = items.len() - shown.len();
-        let heights: Vec<f64> = shown.iter().map(card_height).collect();
+        let heights: Vec<f64> = shown.iter().map(|item| card_height(mtm, item)).collect();
         let below = if top > 0.0 { top + BELOW_NOTCH } else { NO_NOTCH_TOP };
         let gaps = GAP * f64::from(u32::try_from(heights.len().saturating_sub(1)).unwrap_or(0));
         let extra = if more > 0 { GAP + MORE } else { 0.0 };
@@ -604,7 +606,14 @@ impl Notch {
             if mono { mono_label(mtm, &line, 11.0, tint) } else { label(mtm, &line, 11.5, Weight::Regular, tint) };
         field.setFrame(rect(x, y, width - CARD_H - x, LINE));
         view.addSubview(&field);
-        let fits = field.fittingSize().width <= width - CARD_H - x;
+        let mut fits = true;
+        if let Some(command) = card::command(card).filter(|_| item.outcome.is_none()) {
+            let block = command_block(mtm, command);
+            y -= LINE_GAP + block.height;
+            block.field.setFrame(rect(x, y, TEXT_WIDTH, block.height));
+            view.addSubview(&block.field);
+            fits = block.fits;
+        }
         y -= LINE_GAP + PLACE;
         let place = label(mtm, &card::subtitle(card), 10.0, Weight::Regular, SUBTLE);
         place.setFrame(rect(x, y, width - CARD_H - x, PLACE));
@@ -742,8 +751,36 @@ impl Notch {
     }
 }
 
-fn card_height(item: &Item) -> f64 {
+struct Command {
+    field: Retained<NSTextField>,
+    height: f64,
+    fits: bool,
+}
+
+#[expect(clippy::cast_possible_truncation, clippy::cast_sign_loss, reason = "a small, positive count of lines")]
+fn command_block(mtm: MainThreadMarker, text: &str) -> Command {
+    let font = NSFont::monospacedSystemFontOfSize_weight(COMMAND_SIZE, Weight::Regular.value());
+    let wrapping = |shown: &str| {
+        let field = NSTextField::wrappingLabelWithString(&NSString::from_str(shown), mtm);
+        field.setFont(Some(&font));
+        field.setTextColor(Some(&colour(WHITE, 1.0)));
+        field.setLineBreakMode(NSLineBreakMode::ByWordWrapping);
+        field.setPreferredMaxLayoutWidth(TEXT_WIDTH);
+        field
+    };
+    let line = wrapping("A").fittingSize().height.max(1.0);
+    let field = wrapping(text);
+    let lines = (field.fittingSize().height / line).round().clamp(1.0, 99.0) as usize;
+    let shown = lines.min(card::COMMAND_LINES);
+    field.setMaximumNumberOfLines(isize::try_from(shown).unwrap_or(1));
+    field.setLineBreakMode(NSLineBreakMode::ByTruncatingTail);
+    Command { field, height: line * f64::from(u32::try_from(shown).unwrap_or(1)), fits: lines <= card::COMMAND_LINES }
+}
+
+fn card_height(mtm: MainThreadMarker, item: &Item) -> f64 {
     let place = LINE_GAP + PLACE;
+    let command = card::command(&item.card).filter(|_| item.outcome.is_none());
+    let place = place + command.map_or(0.0, |command| LINE_GAP + command_block(mtm, command).height);
     let pills = if item.outcome.is_none() { PILLS_TOP + PILL } else { 0.0 };
     let column = TITLE + LINE_GAP + LINE + place + pills;
     2.0 * CARD_V + column.max(MASCOT)
