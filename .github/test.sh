@@ -142,13 +142,14 @@ fails publish resume || bad "an archive that differs from the manifest's sha256 
 ok "resume refuses archives whose checksums differ from the manifest's"
 
 # --- resume: a tag on a commit that is not a genuine release commit is never pushed to main
-for kind in author source other-field; do
+for kind in author source other-field extra-table; do
     scratch
     base=$(git rev-parse HEAD)
     .github/manifest.sh cornercase-plugin.toml 0.1.0 "$tmp/dist"
     bot="-c user.name=github-actions[bot] -c user.email=41898282+github-actions[bot]@users.noreply.github.com"
     case $kind in
         source) echo '// sneaky' >>src/main.rs; git add -A ;;
+        extra-table) printf '\n[[window]]\nid = "evil"\ncommand = ["bin/evil"]\n' >>cornercase-plugin.toml ;;
         other-field) sed -i.bak 's/^id = "x"/id = "y"/' cornercase-plugin.toml && rm cornercase-plugin.toml.bak ;;
     esac
     git add -A
