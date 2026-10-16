@@ -6,6 +6,8 @@ use crate::ask::Ask;
 pub(crate) mod card;
 #[cfg(any(target_os = "macos", test))]
 pub(crate) mod motion;
+#[cfg(target_os = "macos")]
+pub(crate) mod panel;
 #[cfg(any(target_os = "macos", test))]
 pub(crate) mod rinco;
 
@@ -44,14 +46,6 @@ impl Kind {
 pub(crate) enum Action {
     Open(u64),
     Answer { pane: u64, ask: Ask, key: char },
-}
-
-impl Action {
-    pub(crate) fn pane(&self) -> u64 {
-        match self {
-            Self::Open(pane) | Self::Answer { pane, .. } => *pane,
-        }
-    }
 }
 
 #[cfg(test)]

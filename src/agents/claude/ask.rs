@@ -1,7 +1,5 @@
 use crate::ask::{Ask, Choice};
 
-const PERMISSION: &str = "permission prompt";
-const QUESTION: &str = "input needed";
 const RULE: char = '─';
 const DASH: char = '╌';
 const RULE_MIN: usize = 8;
@@ -19,13 +17,9 @@ const DENY: &str = "deny";
 const MAX_QUESTION_LINES: usize = 4;
 const OPTION_TEXT: usize = 5;
 
-pub(in crate::agents) fn ask(waiting_for: Option<&str>, screen: &str) -> Option<Ask> {
+pub(crate) fn ask_screen(screen: &str) -> Option<Ask> {
     let lines: Vec<&str> = screen.lines().map(str::trim_end).collect();
-    match waiting_for? {
-        PERMISSION => permission(&lines),
-        QUESTION => question(&lines),
-        _ => None,
-    }
+    permission(&lines).or_else(|| question(&lines))
 }
 
 struct Numbered {
