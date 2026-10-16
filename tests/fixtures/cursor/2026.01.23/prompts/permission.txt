@@ -1,0 +1,14 @@
+ > push my branch
+
+ Running a shell command
+
+┌──────────────────────────────────────────────┐
+│ $ git push origin main in ~/repo             │
+└──────────────────────────────────────────────┘
+──────────────────────────────────────────────────
+Run this command?
+Pushes the current branch to origin
+→ Run (once) (y) (enter)
+  Add Shell(git push) to allowlist? (tab)
+  Run Everything (shift+tab)
+  Skip (esc or n)

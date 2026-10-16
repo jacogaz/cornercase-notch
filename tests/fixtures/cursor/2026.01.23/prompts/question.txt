@@ -1,0 +1,11 @@
+ > ask me which colour I prefer
+
+╭─ Clarifying Questions ─────────────────────────────────────────────────────────╮
+│ 1. Which colour do you prefer?                                                 │
+│                                                                                │
+│ › [ ] Red                                                                      │
+│   [ ] Green                                                                    │
+│   [ ] Blue                                                                     │
+│                                                                                │
+│ ↑/↓ option · ←/→ question · Space/Enter select · Enter to submit · Esc to skip │
+╰────────────────────────────────────────────────────────────────────────────────╯

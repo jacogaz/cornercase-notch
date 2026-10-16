@@ -1,0 +1,10 @@
+ grok  ~/projects/shop (main)
+
+ > ask me which colour I prefer
+
+▌  Which colour do you prefer?
+▌
+▌  1 (●) Red
+▌  2 (○) Green
+▌  3 (○) Blue
+▌  z (○) Type your answer here

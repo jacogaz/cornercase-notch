@@ -1,0 +1,9 @@
+Which authentication method should we use?
+
+● 1.  OAuth 2.0
+      Industry standard, supports SSO
+  2.  JWT tokens
+      Stateless, good for APIs
+  3.  Enter a custom value
+
+Enter to select · ↑/↓ to navigate · Esc to cancel

@@ -1,0 +1,94 @@
+use rstest::rstest;
+
+use super::*;
+use crate::test_util::fixture;
+
+fn permission_screen() -> String {
+    fixture!("grok/1.0.45/prompts/permission.txt").to_string()
+}
+
+fn question_screen() -> String {
+    fixture!("grok/1.0.45/prompts/question.txt").to_string()
+}
+
+fn choices(ask: &Ask) -> Vec<(&str, &str)> {
+    ask.choices.iter().map(|c| (c.label.as_str(), c.keys[0].as_str())).collect()
+}
+
+#[test]
+fn a_permission_offers_the_digits_of_yes_proceed_and_no_reject() {
+    let ask = ask_screen(&permission_screen()).expect("a permission");
+
+    assert_eq!(
+        (ask.question, ask.title.as_str(), ask.detail.as_str(), choices(&ask)),
+        (false, "Allow `cargo`?", "cargo test --workspace", vec![("allow", "3"), ("deny", "4")])
+    );
+}
+
+#[test]
+fn the_always_rows_are_never_offered_and_the_cursor_row_does_not_matter() {
+    let on_always = permission_screen()
+        .replace("3 (●) Yes, proceed", "3 (○) Yes, proceed")
+        .replace("1 (○) Yes, and", "1 (●) Yes, and");
+
+    let ask = ask_screen(&on_always).expect("a permission");
+
+    assert_eq!(choices(&ask), [("allow", "3"), ("deny", "4")]);
+}
+
+#[test]
+fn an_edit_allows_with_a_bare_yes() {
+    let edit = permission_screen().replace("Yes, proceed", "Yes");
+
+    assert_eq!(choices(&ask_screen(&edit).expect("a permission")), [("allow", "3"), ("deny", "4")]);
+}
+
+#[test]
+fn a_command_cut_short_by_the_card_offers_deny_only() {
+    let elided =
+        permission_screen().replace("▌  cargo test --workspace", "▌  cargo test --workspace\n▌  ... Ctrl-F to expand");
+
+    assert_eq!(choices(&ask_screen(&elided).expect("a permission")), [("deny", "4")]);
+}
+
+#[rstest]
+#[case::no_reject_row("No, reject (type to add feedback)", "No, reject")]
+#[case::only_always_rows("3 (●) Yes, proceed", "3 (●) Yes, and don't ask again")]
+#[case::a_different_title("Allow `cargo`?", "Run `cargo`")]
+#[case::a_skipped_number("4 (○) No", "5 (○) No")]
+#[case::two_cursors("2 (○) Always allow", "2 (●) Always allow")]
+fn anything_else_gives_no_permission(#[case] from: &str, #[case] to: &str) {
+    assert_eq!(ask_screen(&permission_screen().replace(from, to)), None);
+}
+
+#[test]
+fn text_after_the_card_gives_no_ask() {
+    let after = format!("{}\n ctrl+o yolo · shift+tab mode\n", permission_screen());
+
+    assert_eq!(ask_screen(&after), None);
+}
+
+#[test]
+fn a_changed_command_changes_the_ask() {
+    let changed = permission_screen().replace("cargo test --workspace\n▌", "cargo test --all\n▌");
+
+    assert_ne!(ask_screen(&changed), ask_screen(&permission_screen()));
+}
+
+#[test]
+fn a_single_choice_question_offers_a_digit_per_option_but_not_the_free_text_row() {
+    let ask = ask_screen(&question_screen()).expect("a question");
+
+    assert_eq!(
+        (ask.question, ask.title.as_str(), choices(&ask)),
+        (true, "Which colour do you prefer?", vec![("Red", "1"), ("Green", "2"), ("Blue", "3")])
+    );
+}
+
+#[rstest]
+#[case::multiple_choice("1 (●) Red", "1 [x] Red")]
+#[case::no_free_text_row("z (○) Type your answer here", "4 (○) Purple")]
+#[case::a_skipped_number("2 (○) Green", "3 (○) Green")]
+fn another_question_gives_no_ask(#[case] from: &str, #[case] to: &str) {
+    assert_eq!(ask_screen(&question_screen().replace(from, to)), None);
+}
