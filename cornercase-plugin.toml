@@ -6,7 +6,7 @@ description = "A plugin for cornercase that shows the coding agents that need yo
 platforms = ["macos"]
 permissions = [
   "reads every pane's status and the screen of waiting agents it can answer",
-  "presses a digit in a Claude Code pane when you answer from the notch",
+  "presses a digit in a Claude Code or Codex pane when you answer from the notch",
   "shows a pane and brings your terminal forward when you click",
 ]
 

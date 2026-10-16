@@ -29,9 +29,19 @@ Most of the time you see a **pill**: Rinco, the plugin's mascot, and one line ab
 
 ## Answering
 
-For **Claude Code** a permission prompt gets `allow` and `deny` buttons and a single question gets one button per option; pressing one types that option's digit in the pane. Everything else (several questions, checkboxes, free text, any other agent) gets `open` only.
+A card gets answer buttons only for agents whose screen the plugin can read reliably, checked against real screens kept as test fixtures:
 
-The buttons are offered only when cornercase's screen of the pane still shows the same prompt right before the digit is typed. If the prompt is gone the plugin presses nothing and shows the pane instead. `allow` is offered only when the whole command fits on the card; for a longer one, open the pane and read it there.
+| agent | buttons | why |
+|-------|---------|-----|
+| Claude Code | permission prompts: `allow`, `deny`; single questions: one per option | checked live; a digit picks the option and submits it |
+| Codex | command approvals: `allow`, `deny` | checked live on 0.163.0; a digit selects and submits. Its questions, patch approvals and permission requests get `open` only |
+| Gemini CLI, Grok Build | `open` only | could not be checked live |
+| opencode | `open` only | allow needs Enter on a highlight that plain screen text does not show |
+| Cursor CLI | `open` only | no digits, and its labels change between releases |
+
+Pressing a button types that option's digit in the pane. Several questions, checkboxes, free text and anything else get `open` only.
+
+The buttons are offered only when cornercase's screen of the pane still shows the same prompt right before the digit is typed. If the prompt is gone the plugin presses nothing and shows the pane instead. The command is shown on the card, wrapped on up to three lines, and `allow` is offered only when all of it is visible and the agent did not cut it short; otherwise there is `deny` and `open`, and you read the rest in the pane.
 
 ## Limits
 
@@ -39,7 +49,7 @@ The buttons are offered only when cornercase's screen of the pane still shows th
 - Local windows only: it does not run under `cornercase remote`, which has no socket on the window's machine.
 - "Looking" means your terminal app is the frontmost app. A card for the tab you are looking at is hidden, but the plugin cannot tell a different window or tab of the same terminal app from the one cornercase shows.
 - One notch per Mac: a second window waits and takes over when the first closes.
-- Only Claude Code's prompts can be answered. Other agents can get a parser in `src/agents/<agent>/` and be listed in `board::answers`.
+- Only Claude Code's and Codex's prompts can be answered. Another agent gets a parser in `src/agents/<agent>/` and a line in `agents::answers` and `agents::ask_screen`.
 
 ## Development
 

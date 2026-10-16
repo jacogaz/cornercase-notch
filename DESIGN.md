@@ -23,7 +23,7 @@ It reads no files of cornercase's and never sends anything but a digit.
 
 `board::build` turns the panes into cards. It is pure: the panes, what the process has seen of the events and the clock go in, and a list of cards comes out; a screen reader function is called only for waiting panes of agents that `answers`. Any pane with an agent can get a card:
 
-- waiting becomes a card with `open` only, or with buttons when the screen is a prompt a parser recognises (Claude Code only; `board::answers` is the one switch, and a parser for another agent goes in `src/agents/<agent>/`);
+- waiting becomes a card with `open` only, or with buttons when the screen is a prompt that agent's parser recognises (`agents::answers` and `agents::ask_screen` are the one switch, and a parser goes in `src/agents/<agent>/`);
 - failed becomes a card with `open` only, in the error mood;
 - done becomes a card with `open` only;
 - working, a background shell, idle and pending get none.
@@ -44,9 +44,23 @@ The panel hides the cards of the shown tab while you look at the window. It cann
 
 A click on a button runs an action on its own thread. Right before typing, the action reads the pane again: the digit is typed only when the agent is still one that `answers`, still waiting, the screen gives the same ask as the card showed and the key is one of its choices. Otherwise nothing is pressed and the pane is shown instead.
 
-The parsers are strict and anchored, with screens from Claude Code 2.1.296 as fixtures: a permission prompt is the last ` Esc to cancel` line with numbered options under a ` Do you want to …?` line, `1. Yes` first and a `No` among them, whose number is read, never assumed; a question is the last `Enter to select · ↑/↓ to navigate · Esc to cancel` line with one tab, its question and numbered options ending in `Type something.`. Several questions, checkboxes, free text and anything else are not recognised. A digit does not depend on where the cursor is, which arrow keys and Enter would.
+Which agents get buttons is a rule: only where the screen parse is reliable and tested against real screens kept as fixtures.
 
-Two limits, stated plainly. The check and the key press are two commands, so the prompt can change in between; the window is milliseconds and the screen is compared as a whole prompt, but cornercase has no "press this only if the screen is still that" call, which would close it. And a card shows one line: a command wider than it would be cut with an ellipsis, so `allow` is offered only when the whole command fits and never when there is no command to show. `deny` and `open` are always safe.
+| agent | buttons | why |
+|-------|---------|-----|
+| Claude Code | permission prompts and single questions | checked live on 2.1.296 and 2.1.302; a digit picks the option and submits it |
+| Codex | command approvals | checked live on 0.163.0; a digit selects and submits. Its `request_user_input` questions, patch approvals and permission requests are not recognised |
+| Gemini CLI, Grok Build | none | not checked live (not signed in, not installed) |
+| opencode | none | allow needs Enter on a highlight that is invisible in screen text |
+| Cursor CLI | none | no digits, and its labels drift between releases |
+
+The parsers are strict and anchored. Claude Code's: a permission prompt is the last ` Esc to cancel` line with numbered options under a ` Do you want to …?` line, `1. Yes` first and a `No` among them, whose number is read, never assumed; a question is the last `Enter to select · ↑/↓ to navigate · Esc to cancel` line with one tab, its question and numbered options ending in `Type something.`. Several questions, checkboxes, free text and anything else are not recognised.
+
+Codex's command approval is the title line `  Would you like to run the following command?`, optional `Environment:`, `Reason:`, `Permission rule:` and `Thread:` lines, the command as `  $ …` lines (continuations indented), numbered rows `› N. label (key)` consecutive from 1 with at most one cursor, and as the last non-empty line `  Press enter to confirm or esc to cancel` (with `or o to open thread` allowed). Allow is the row starting `Yes, proceed` or `Yes, just this once`, deny the row starting `No, and tell Codex what to do differently`; both must exist, and a "don't ask again" row is never offered. Anything unknown above the command, a different title or footer, a skipped number or a second cursor gives no ask. When the agent elides the command (`[… N lines]`), only `deny` is offered. The shared reading of numbered rows is `agents/numbered.rs`.
+
+A digit does not depend on where the cursor is, which arrow keys and Enter would.
+
+Two limits, stated plainly. The check and the key press are two commands, so the prompt can change in between; the window is milliseconds and the screen is compared as a whole prompt, but cornercase has no "press this only if the screen is still that" call, which would close it. And the card must not let you allow what you cannot read: the command is shown wrapped in monospace on up to three lines, and `allow` is offered only when the whole command fits in them (measured when the card is laid out, with a character cap as a second guard), the agent did not elide it, and there is a command at all. Otherwise there is `deny` and `open`. A denial's text names the agent it was given to.
 
 ## One panel per Mac
 
