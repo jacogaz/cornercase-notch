@@ -1,0 +1,15 @@
+id = "jacogaz.notch"
+name = "Notch"
+version = "0.1.0"
+api = 1
+description = "Shows the Claude Code agents that need you in the macOS notch; answer their permission prompts and questions there."
+platforms = ["macos"]
+permissions = [
+  "reads every pane's status and the screen of waiting Claude Code panes",
+  "presses a digit in a Claude Code pane when you answer from the notch",
+  "shows a pane and brings your terminal forward when you click",
+]
+
+[[window]]
+id = "panel"
+command = ["bin/cornercase-notch", "panel"]
