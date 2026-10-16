@@ -27,6 +27,7 @@ fn asks(question: bool) -> Kind {
         title: if question { "Which colour?" } else { "Bash command" }.into(),
         detail: if question { "Colour" } else { "npm test -- auth" }.into(),
         choices,
+        fingerprint: String::new(),
     })
 }
 
@@ -243,4 +244,15 @@ fn deny_alone_is_still_answerable_when_the_agent_offered_no_allow() {
 
     assert_eq!(buttons(&elided, true).iter().map(|b| b.label.as_str()).collect::<Vec<_>>(), ["deny", "open"]);
     assert_eq!(outcome(&elided, '4'), Some(Outcome::Denied("Claude Code".into())));
+}
+
+#[test]
+fn a_command_of_several_lines_is_one_line_in_the_pill_and_needs_all_its_lines_to_fit() {
+    let mut card = card(asks(false));
+    if let Kind::Asks(ask) = &mut card.kind {
+        ask.detail = "echo safe\nrm -rf target".into();
+    }
+
+    assert_eq!(summary(&card), "Fix the auth bug · echo safe ⏎ rm -rf target");
+    assert_eq!([command_fits("a\nb\nc"), command_fits("a\nb\nc\nd")], [true, false]);
 }

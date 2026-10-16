@@ -84,3 +84,46 @@ fn a_question_from_a_later_claude_code_still_parses() {
         (true, "Which colour do you prefer?", "Colour", vec![("Red", '1'), ("Green", '2'), ("Blue", '3')])
     );
 }
+
+#[rstest]
+#[case::a_permission_prompt("permission")]
+#[case::a_question("question")]
+fn anything_after_the_footer_means_no_ask(#[case] name: &str) {
+    for after in ["\nsomething else", "\n\n❯ ", "\n─────────\n Do you want to proceed?"] {
+        assert_eq!(ask_screen(&format!("{}{after}", fixture(name).trim_end())), None, "{after:?}");
+    }
+    assert!(ask_screen(&format!("{}\n\n\n", fixture(name).trim_end())).is_some());
+}
+
+#[rstest]
+#[case::the_two_prompts_together("permission", "question")]
+#[case::the_same_twice("question", "question")]
+fn an_obsolete_prompt_above_a_newer_one_is_not_the_ask(#[case] old: &str, #[case] new: &str) {
+    let screen = format!("{}\n{}", fixture(old), fixture(new));
+    let found = ask_screen(&screen);
+
+    assert_eq!(found, ask_screen(&fixture(new)));
+    assert_ne!(found, None);
+}
+
+#[test]
+fn a_command_with_a_second_line_keeps_its_newline() {
+    let screen =
+        fixture("permission").replace(" touch /home/a/web-shop/made-by-claude\n", " echo  safe\n rm -rf target\n");
+
+    assert_eq!(ask_screen(&screen).expect("an ask").detail, "echo  safe\nrm -rf target");
+}
+
+#[test]
+fn a_changed_option_description_changes_the_ask() {
+    let changed = fixture("question").replace("The colour green", "Another green");
+
+    assert_ne!(ask_screen(&changed), ask_screen(&fixture("question")));
+}
+
+#[test]
+fn a_changed_tip_or_header_above_a_permission_changes_the_ask() {
+    let changed = fixture("permission").replace("Create empty marker file", "Remove everything");
+
+    assert_ne!(ask_screen(&changed), ask_screen(&fixture("permission")));
+}

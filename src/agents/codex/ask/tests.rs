@@ -52,10 +52,10 @@ fn a_cursor_on_another_row_is_fine() {
 }
 
 #[test]
-fn a_command_that_wraps_is_read_whole() {
+fn a_command_keeps_the_screens_line_boundaries() {
     let screen = screen().replace("  $ touch ~/.cornercase-notch-probe", "  $ touch ~/.cornercase-notch\n    -probe");
 
-    assert_eq!(ask_screen(&screen).expect("an approval").detail, "touch ~/.cornercase-notch -probe");
+    assert_eq!(ask_screen(&screen).expect("an approval").detail, "touch ~/.cornercase-notch\n-probe");
 }
 
 #[test]
@@ -110,4 +110,29 @@ fn another_kind_of_screen_is_not_a_command_approval() {
 
     assert_eq!(ask_screen(question), None);
     assert_eq!(ask_screen(""), None);
+}
+
+#[test]
+fn a_command_with_a_second_line_keeps_its_newline_and_spacing() {
+    let screen = screen().replace("  $ touch ~/.cornercase-notch-probe", "  $ echo  safe\n    rm -rf target");
+
+    assert_eq!(ask_screen(&screen).expect("an approval").detail, "echo  safe\nrm -rf target");
+}
+
+#[rstest]
+#[case::environment("Environment: local", "Environment: remote")]
+#[case::reason("Reason: Do you approve", "Reason: Do you really approve")]
+fn what_the_user_saw_above_the_command_is_part_of_the_ask(#[case] from: &str, #[case] to: &str) {
+    let before = ask_screen(&screen()).expect("an approval");
+    let after = ask_screen(&screen().replace(from, to)).expect("an approval");
+
+    assert_ne!(before, after);
+    assert_eq!((&before.detail, &before.choices), (&after.detail, &after.choices));
+}
+
+#[test]
+fn a_header_the_card_does_not_show_is_in_the_fingerprint() {
+    let with_thread = screen().replace("  Environment: local", "  Environment: local\n\n  Thread: other");
+
+    assert_ne!(ask_screen(&with_thread), ask_screen(&screen()));
 }

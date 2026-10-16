@@ -9,6 +9,8 @@ pub(crate) struct Ask {
     pub(crate) title: String,
     pub(crate) detail: String,
     pub(crate) choices: Vec<Choice>,
+    #[serde(default)]
+    pub(crate) fingerprint: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

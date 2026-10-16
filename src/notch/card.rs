@@ -77,7 +77,7 @@ fn name(card: &Card) -> String {
 pub(crate) fn summary(card: &Card) -> String {
     match &card.kind {
         Kind::Asks(ask) if ask.question || ask.detail.is_empty() => format!("{} · {}", name(card), ask.title),
-        Kind::Asks(ask) => format!("{} · {}", name(card), ask.detail),
+        Kind::Asks(ask) => format!("{} · {}", name(card), one_line(&ask.detail)),
         Kind::Waiting => format!("{} needs you", name(card)),
         Kind::Failed => format!("{} failed", name(card)),
         Kind::Done => format!("{} finished", name(card)),
@@ -138,7 +138,11 @@ pub(crate) fn command(card: &Card) -> Option<&str> {
 }
 
 pub(crate) fn command_fits(command: &str) -> bool {
-    !command.is_empty() && command.chars().count() <= MAX_COMMAND
+    !command.is_empty() && command.lines().count() <= COMMAND_LINES && command.chars().count() <= MAX_COMMAND
+}
+
+fn one_line(command: &str) -> String {
+    command.replace('\n', " ⏎ ")
 }
 
 pub(crate) fn outcome(card: &Card, key: char) -> Option<Outcome> {
@@ -147,7 +151,7 @@ pub(crate) fn outcome(card: &Card, key: char) -> Option<Outcome> {
     Some(if ask.question {
         Outcome::Picked(choice.label.clone())
     } else if choice.label == ALLOW {
-        Outcome::Running(if ask.detail.is_empty() { ask.title.clone() } else { ask.detail.clone() })
+        Outcome::Running(if ask.detail.is_empty() { ask.title.clone() } else { one_line(&ask.detail) })
     } else {
         Outcome::Denied(card.agent.clone())
     })

@@ -28,13 +28,14 @@ pub(crate) fn ask_screen(screen: &str) -> Option<Ask> {
     let (command, elided) = command(&lines[title + 1..start])?;
     let allow = options.iter().find(|o| ALLOWS.iter().any(|label| o.label.starts_with(label)));
     let deny = options.iter().find(|o| o.label.starts_with(DENIES))?;
+    let fingerprint = lines[title..=footer].join("\n");
     let mut choices = Vec::new();
     if let Some(allow) = allow.filter(|_| !elided) {
         choices.push(choice(ALLOW, allow.number)?);
     }
     choices.push(choice(DENY, deny.number)?);
     allow?;
-    Some(Ask { question: false, title: COMMAND_TITLE.into(), detail: command, choices })
+    Some(Ask { question: false, title: COMMAND_TITLE.into(), detail: command, choices, fingerprint })
 }
 
 fn command(lines: &[&str]) -> Option<(String, bool)> {
@@ -43,10 +44,10 @@ fn command(lines: &[&str]) -> Option<(String, bool)> {
         if line.is_empty() {
             in_command = false;
         } else if let Some(first) = line.strip_prefix(COMMAND) {
-            command.push(first.trim());
+            command.push(first);
             in_command = true;
-        } else if in_command && line.starts_with(CONTINUED) {
-            command.push(line.trim());
+        } else if in_command && let Some(next) = line.strip_prefix(CONTINUED) {
+            command.push(next);
         } else if line.starts_with(ELIDED) {
             elided = true;
             in_command = false;
@@ -56,7 +57,7 @@ fn command(lines: &[&str]) -> Option<(String, bool)> {
             return None;
         }
     }
-    (!command.is_empty() || elided).then(|| (command.join(" "), elided))
+    (!command.is_empty() || elided).then(|| (command.join("\n"), elided))
 }
 
 #[cfg(test)]

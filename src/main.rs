@@ -63,7 +63,7 @@ fn board() -> Result<(), String> {
 
 fn act(action: &str) -> Result<(), String> {
     let action: Action = serde_json::from_str(action).map_err(|e| format!("not an action: {e}"))?;
-    println!("{}", act::run(&action, &|| looking::bring_forward(looking::terminal())));
+    println!("{}", act::run(&action, &|| looking::bring_forward(looking::terminal())).said);
     Ok(())
 }
 

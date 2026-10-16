@@ -58,6 +58,7 @@ const NO_NOTCH_HEIGHT: f64 = 1.0;
 const MAX_SHOWN: usize = 3;
 const TEXT_WIDTH: f64 = WIDTH - 2.0 * SIDE - CARD_H - (CARD_H + MASCOT + MASCOT_GAP);
 const COMMAND_SIZE: f64 = 10.5;
+const PENDING_FOR: Duration = Duration::from_secs(10);
 const RESULT_FOR: Duration = Duration::from_millis(1200);
 const POLL_EVERY: f64 = 0.1;
 const FRAME_EVERY: f64 = 1.0 / 60.0;
@@ -127,7 +128,8 @@ struct Ivars {
     appeared: RefCell<Vec<(Card, Instant)>>,
     expand: Cell<Expand>,
     shown: RefCell<Option<Shown>>,
-    clicks: RefCell<Vec<Click>>,
+    generation: Cell<u64>,
+    pending: RefCell<Vec<(Card, char, Instant)>>,
     clocks: RefCell<Vec<(Retained<NSTextField>, u64)>>,
     mascots: RefCell<Vec<Retained<Sprite>>>,
     moods: RefCell<HashMap<(u64, Mood), Instant>>,
@@ -184,6 +186,7 @@ define_class!(
                 let board = ivars.built.borrow().board(looking);
                 self.take(board, now);
             }
+            self.settle(now);
             self.expire(now);
             self.hover(now);
             self.render();
@@ -210,7 +213,8 @@ struct ShapeIvars {
     hover: Cell<Option<u32>>,
     hovered: Cell<bool>,
     radius: Cell<f64>,
-    click: Cell<Option<usize>>,
+    click: RefCell<Option<Click>>,
+    generation: Cell<u64>,
     notch: OnceCell<Retained<Notch>>,
 }
 
@@ -231,8 +235,10 @@ define_class!(
 
         #[unsafe(method(mouseUp:))]
         fn mouse_up(&self, _event: &NSEvent) {
-            if let (Some(click), Some(notch)) = (self.ivars().click.get(), self.ivars().notch.get()) {
-                notch.clicked(click);
+            let ivars = self.ivars();
+            let click = ivars.click.borrow().clone();
+            if let (Some(click), Some(notch)) = (click, ivars.notch.get()) {
+                notch.clicked(click, ivars.generation.get());
             }
         }
 
@@ -328,7 +334,8 @@ impl Notch {
             appeared: RefCell::new(Vec::new()),
             expand: Cell::new(Expand::default()),
             shown: RefCell::new(None),
-            clicks: RefCell::new(Vec::new()),
+            generation: Cell::new(0),
+            pending: RefCell::new(Vec::new()),
             clocks: RefCell::new(Vec::new()),
             mascots: RefCell::new(Vec::new()),
             moods: RefCell::new(HashMap::new()),
@@ -344,23 +351,37 @@ impl Notch {
         unsafe { msg_send![super(this), init] }
     }
 
-    fn clicked(&self, index: usize) {
-        let click = self.ivars().clicks.borrow().get(index).cloned();
-        match click {
-            Some((Press::Open(pane), _)) => self.send(Action::Open(pane)),
-            Some((Press::Answer(action), card)) => {
-                self.send(action.clone());
-                if let Action::Answer { key, .. } = &action
-                    && let Some(outcome) = card::outcome(&card, *key)
-                {
-                    self.ivars().answered.borrow_mut().push((*card, outcome, Instant::now()));
-                } else {
-                    self.ivars().dismissed.borrow_mut().push(*card);
+    fn clicked(&self, (press, card): Click, generation: u64) {
+        if generation != self.ivars().generation.get() {
+            return;
+        }
+        match press {
+            Press::Open(pane) => self.send(Action::Open(pane)),
+            Press::Answer(action) => {
+                if let Action::Answer { key, .. } = &action {
+                    self.ivars().pending.borrow_mut().push((*card, *key, Instant::now()));
                 }
+                self.send(action);
             }
-            None => {}
         }
         self.render();
+    }
+
+    fn settle(&self, now: Instant) {
+        let mut pending = self.ivars().pending.borrow_mut();
+        let mut dismissed = self.ivars().dismissed.borrow_mut();
+        for (pane, key, sent) in self.ivars().shared.take_answers() {
+            let Some(at) = pending.iter().position(|(card, k, _)| card.pane == pane && *k == key) else { continue };
+            let (card, key, _) = pending.remove(at);
+            match card::outcome(&card, key).filter(|_| sent) {
+                Some(outcome) => self.ivars().answered.borrow_mut().push((card, outcome, now)),
+                None => dismissed.push(card),
+            }
+        }
+        let (stale, kept): (Vec<_>, Vec<_>) =
+            pending.drain(..).partition(|(_, _, at)| now.saturating_duration_since(*at) >= PENDING_FOR);
+        *pending = kept;
+        dismissed.extend(stale.into_iter().map(|(card, _, _)| card));
     }
 
     fn take(&self, board: Board, now: Instant) {
@@ -415,17 +436,30 @@ impl Notch {
     }
 
     fn send(&self, action: Action) {
-        let shared = Arc::clone(&self.ivars().shared);
-        act::spawn(action, move || shared.forward.store(true, Ordering::Relaxed));
+        let (forward, report) = (Arc::clone(&self.ivars().shared), Arc::clone(&self.ivars().shared));
+        act::spawn(
+            action,
+            move || forward.forward.store(true, Ordering::Relaxed),
+            move |action, result| {
+                if let Action::Answer { pane, key, .. } = action {
+                    report.answered(*pane, *key, result.sent);
+                }
+            },
+        );
     }
 
     fn items(&self) -> Vec<Item> {
-        let (board, dismissed, answered) =
-            (self.ivars().board.borrow(), self.ivars().dismissed.borrow(), self.ivars().answered.borrow());
+        let (board, dismissed, answered, pending) = (
+            self.ivars().board.borrow(),
+            self.ivars().dismissed.borrow(),
+            self.ivars().answered.borrow(),
+            self.ivars().pending.borrow(),
+        );
         let waiting = board
             .cards
             .iter()
             .filter(|c| !dismissed.contains(c) && !answered.iter().any(|(a, _, _)| a.pane == c.pane))
+            .filter(|c| !pending.iter().any(|(p, _, _)| p.pane == c.pane))
             .map(|c| Item { card: c.clone(), outcome: None });
         let results =
             answered.iter().rev().map(|(card, outcome, _)| Item { card: card.clone(), outcome: Some(outcome.clone()) });
@@ -466,7 +500,7 @@ impl Notch {
     }
 
     fn fresh_content(&self, mtm: MainThreadMarker, target: Size) -> Retained<NSView> {
-        self.ivars().clicks.borrow_mut().clear();
+        self.ivars().generation.set(self.ivars().generation.get() + 1);
         self.ivars().clocks.borrow_mut().clear();
         self.ivars().mascots.borrow_mut().clear();
         unsafe { msg_send![NSView::alloc(mtm), initWithFrame: rect(0.0, 0.0, target.width, target.height)] }
@@ -554,9 +588,8 @@ impl Notch {
     }
 
     fn clickable(&self, shape: &Shape, click: Click, hover: Option<u32>) {
-        let mut clicks = self.ivars().clicks.borrow_mut();
-        shape.ivars().click.set(Some(clicks.len()));
-        clicks.push(click);
+        shape.ivars().click.replace(Some(click));
+        shape.ivars().generation.set(self.ivars().generation.get());
         let _ = shape.ivars().notch.set(self.retain());
         if let Some(hover) = hover {
             shape.ivars().hover.set(Some(hover));

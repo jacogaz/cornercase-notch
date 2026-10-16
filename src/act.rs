@@ -5,35 +5,46 @@ use crate::cornercase;
 use crate::log;
 use crate::notch::Action;
 
-pub(crate) fn spawn(action: Action, forward: impl Fn() + Send + 'static) {
+pub(crate) struct Report {
+    pub(crate) said: String,
+    pub(crate) sent: bool,
+}
+
+pub(crate) fn spawn(
+    action: Action,
+    forward: impl Fn() + Send + 'static,
+    done: impl FnOnce(&Action, &Report) + Send + 'static,
+) {
     thread::spawn(move || {
-        run(&action, &forward);
+        let report = run(&action, &forward);
+        done(&action, &report);
     });
 }
 
-pub(crate) fn run(action: &Action, forward: &dyn Fn()) -> String {
+pub(crate) fn run(action: &Action, forward: &dyn Fn()) -> Report {
     match action {
-        Action::Open(pane) => open(*pane, forward),
+        Action::Open(pane) => Report { said: open(*pane, forward), sent: false },
         Action::Answer { pane, ask, key } => {
             let panes = cornercase::panes().map_err(|e| log::line(&format!("could not read the panes: {e}")));
             let found = panes.iter().flatten().find(|p| p.pane == *pane);
             if !still_asks(ask, *key, found, || cornercase::screen(*pane).ok()) {
                 let said = format!("pane {pane} no longer asks that; showing it instead");
                 log::line(&said);
-                return format!("{said}; {}", open(*pane, forward));
+                return Report { said: format!("{said}; {}", open(*pane, forward)), sent: false };
             }
             match cornercase::keys(*pane, *key) {
                 Ok(()) => {
-                    let said = format!(
-                        "answered pane {pane} with {key} ({})",
-                        if ask.question { "question" } else { "permission" }
-                    );
+                    let kind = if ask.question { "question" } else { "permission" };
+                    let said = format!("answered pane {pane} with {key} ({kind})");
                     log::line(&said);
-                    said
+                    Report { said, sent: true }
                 }
                 Err(e) => {
                     log::line(&format!("could not press {key} in pane {pane}: {e}"));
-                    format!("could not press {key} in pane {pane}; {}", open(*pane, forward))
+                    Report {
+                        said: format!("could not press {key} in pane {pane}; {}", open(*pane, forward)),
+                        sent: false,
+                    }
                 }
             }
         }

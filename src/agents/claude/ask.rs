@@ -21,7 +21,7 @@ pub(crate) fn ask_screen(screen: &str) -> Option<Ask> {
 }
 
 fn permission(lines: &[&str]) -> Option<Ask> {
-    let footer = lines.iter().rposition(|line| line.starts_with(PERMISSION_FOOTER))?;
+    let footer = last_line(lines).filter(|&i| lines[i].starts_with(PERMISSION_FOOTER))?;
     let end = last_filled(lines, footer)?;
     let start = (0..=end).rev().find(|&i| lines[i].starts_with(PROCEED) && lines[i].ends_with('?'))?;
     let options = options(&lines[start + 1..=end], 1, false, CURSOR)?;
@@ -31,15 +31,18 @@ fn permission(lines: &[&str]) -> Option<Ask> {
     let title = lines.get(top + 1).map(|line| line.trim()).filter(|t| !t.is_empty() && top + 1 < start)?;
     let dashes: Vec<usize> = (top + 1..start).filter(|&i| rule(lines[i], DASH)).collect();
     let detail = match dashes.as_slice() {
-        [open, close, ..] => lines[open + 1..*close].iter().map(|l| l.trim()).collect::<Vec<_>>().join(" "),
+        [open, close, ..] => {
+            lines[open + 1..*close].iter().map(|l| l.strip_prefix(' ').unwrap_or(l)).collect::<Vec<_>>().join("\n")
+        }
         _ => String::new(),
     };
     let choices = vec![choice(ALLOW, first.number)?, choice(DENY, no.number)?];
-    Some(Ask { question: false, title: title.to_string(), detail, choices })
+    let fingerprint = lines[top..=footer].join("\n");
+    Some(Ask { question: false, title: title.to_string(), detail, choices, fingerprint })
 }
 
 fn question(lines: &[&str]) -> Option<Ask> {
-    let footer = lines.iter().rposition(|line| *line == QUESTION_FOOTER)?;
+    let footer = last_line(lines).filter(|&i| lines[i] == QUESTION_FOOTER)?;
     let below = (0..footer).rev().find(|&i| rule(lines[i], RULE))?;
     let end = last_filled(lines, below)?;
     let blank = (0..end).rev().find(|&i| lines[i].is_empty())?;
@@ -59,7 +62,12 @@ fn question(lines: &[&str]) -> Option<Ask> {
     }
     let title = lines[gap + 1..=question_end].join(" ");
     let choices = offered.iter().map(|o| choice(&o.label, o.number)).collect::<Option<Vec<_>>>()?;
-    Some(Ask { question: true, title, detail: header.trim().to_string(), choices })
+    let fingerprint = lines[gap - 2..=footer].join("\n");
+    Some(Ask { question: true, title, detail: header.trim().to_string(), choices, fingerprint })
+}
+
+fn last_line(lines: &[&str]) -> Option<usize> {
+    lines.iter().rposition(|line| !line.is_empty())
 }
 
 fn last_filled(lines: &[&str], before: usize) -> Option<usize> {

@@ -418,3 +418,15 @@ fn every_agent_flashes_done_when_it_finishes_out_of_sight() {
         assert_eq!(kinds(&built), [(1, "done")], "{name}");
     }
 }
+
+#[test]
+fn an_answer_is_refused_when_anything_the_user_saw_changed() {
+    let codex = || panes(&[r#"{"pane":4,"tab":1,"agent":"codex","status":"waiting"}"#]).remove(0);
+    let shown = include_str!("../../tests/fixtures/codex/0.163.0/prompts/permission.txt");
+    let ask = ask_screen("codex", shown).expect("an ask");
+
+    let same = still_asks(&ask, '1', Some(&codex()), || Some(shown.to_string()));
+    let other_environment = still_asks(&ask, '1', Some(&codex()), || Some(shown.replace("local", "remote")));
+
+    assert_eq!((same, other_environment), (true, false));
+}

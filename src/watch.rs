@@ -20,6 +20,7 @@ pub(crate) struct Shared {
 #[derive(Debug, Default)]
 struct Inbox {
     built: Option<Built>,
+    answers: Vec<(u64, char, bool)>,
 }
 
 impl Default for Shared {
@@ -31,6 +32,14 @@ impl Default for Shared {
 impl Shared {
     pub(crate) fn take(&self) -> Option<Built> {
         self.inbox.lock().unwrap_or_else(PoisonError::into_inner).built.take()
+    }
+
+    pub(crate) fn answered(&self, pane: u64, key: char, sent: bool) {
+        self.inbox.lock().unwrap_or_else(PoisonError::into_inner).answers.push((pane, key, sent));
+    }
+
+    pub(crate) fn take_answers(&self) -> Vec<(u64, char, bool)> {
+        std::mem::take(&mut self.inbox.lock().unwrap_or_else(PoisonError::into_inner).answers)
     }
 
     fn publish(&self, built: Built) {
