@@ -75,21 +75,10 @@ fn a_changed_command_changes_the_ask() {
     assert_ne!(ask_screen(&changed), ask_screen(&permission_screen()));
 }
 
-#[test]
-fn a_single_choice_question_offers_a_digit_per_option_but_not_the_free_text_row() {
-    let ask = ask_screen(&question_screen()).expect("a question");
-
-    assert_eq!(
-        (ask.question, ask.title.as_str(), choices(&ask)),
-        (true, "Which colour do you prefer?", vec![("Red", "1"), ("Green", "2"), ("Blue", "3")])
-    );
-}
-
 #[rstest]
-#[case::multiple_choice("1 (●) Red", "1 [x] Red")]
-#[case::no_free_text_row("z (○) Type your answer here", "4 (○) Purple")]
-#[case::a_skipped_number("2 (○) Green", "3 (○) Green")]
-fn another_question_gives_no_ask(#[case] from: &str, #[case] to: &str) {
+#[case::as_it_is("1 (●) Red", "1 (●) Red")]
+#[case::another_row_under_the_cursor("1 (●) Red", "1 (○) Red")]
+fn a_question_gives_no_ask_since_a_digit_may_be_typed_text(#[case] from: &str, #[case] to: &str) {
     assert_eq!(ask_screen(&question_screen().replace(from, to)), None);
 }
 

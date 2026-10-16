@@ -1,5 +1,5 @@
 use super::super::numbered::choice;
-use crate::ask::{ALLOW, Ask, Choice, DENY};
+use crate::ask::{ALLOW, Ask, DENY};
 
 const ALLOW_LABELS: [&str; 2] = ["Yes, proceed", "Yes"];
 const DENY_LABEL: &str = "No, reject (type to add feedback)";
@@ -8,6 +8,8 @@ const EXPAND_HINT: &str = "Ctrl-F";
 const SCOPE_HINT: &str = "← → narrow scope  ·  e edit pattern";
 const FREE_TEXT: char = 'z';
 
+/// Permission prompts only. A question has no ask: its digits are typed as text while the cursor is on the
+/// free-text row, which the plain screen does not show (a `(●)` is a selection, not the cursor).
 pub(crate) fn ask_screen(screen: &str) -> Option<Ask> {
     let lines: Vec<&str> = screen.lines().map(str::trim_end).collect();
     let last = lines.iter().rposition(|line| !line.is_empty())?;
@@ -16,7 +18,7 @@ pub(crate) fn ask_screen(screen: &str) -> Option<Ask> {
     card[end]?;
     let first = (0..=end).rev().take_while(|&i| card[i].is_some()).last()?;
     let body: Vec<&str> = card[first..=end].iter().map(|line| line.unwrap_or_default()).collect();
-    permission(&body).or_else(|| question(&body))
+    permission(&body)
 }
 
 /// A line of the card: an accent bar, two spaces, then the text; or just the bar.
@@ -104,28 +106,6 @@ fn permission(body: &[&str]) -> Option<Ask> {
         choices,
         fingerprint: body[title..].join("\n"),
     })
-}
-
-fn question(body: &[&str]) -> Option<Ask> {
-    let (start, found) = rows(body)?;
-    let (free, offered) = found.split_last()?;
-    if free.0 != FREE_TEXT || offered.is_empty() || offered.len() > 9 {
-        return None;
-    }
-    let in_order = offered
-        .iter()
-        .enumerate()
-        .all(|(i, (key, _, _))| key.to_digit(10).and_then(|d| usize::try_from(d).ok()) == Some(i + 1));
-    if !in_order || offered.iter().any(|(key, _, _)| *key == FREE_TEXT) {
-        return None;
-    }
-    let asked: Vec<&str> = body[..start].iter().copied().filter(|line| !line.is_empty()).collect();
-    if asked.is_empty() {
-        return None;
-    }
-    let choices =
-        offered.iter().map(|(key, _, label)| choice(label, key.to_digit(10)?)).collect::<Option<Vec<Choice>>>()?;
-    Some(Ask { question: true, title: asked.join(" "), detail: String::new(), choices, fingerprint: body.join("\n") })
 }
 
 #[cfg(test)]

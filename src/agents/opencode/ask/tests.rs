@@ -17,17 +17,12 @@ fn choices(ask: &Ask) -> Vec<(&str, Vec<&str>)> {
 }
 
 #[test]
-fn a_permission_offers_enter_to_allow_once_and_esc_to_reject() {
+fn a_permission_offers_esc_to_reject_and_never_enter_to_allow() {
     let ask = ask_screen(&screen("permission")).expect("a permission");
 
     assert_eq!(
         (ask.question, ask.title.as_str(), ask.detail.as_str(), choices(&ask)),
-        (
-            false,
-            "Shell command",
-            "$ touch /private/tmp/claude-501/ccn/proj/oc.txt",
-            vec![("allow", vec!["enter"]), ("deny", vec!["esc"])]
-        )
+        (false, "Shell command", "$ touch /private/tmp/claude-501/ccn/proj/oc.txt", vec![("deny", vec!["esc"])])
     );
 }
 
@@ -58,23 +53,53 @@ fn a_changed_option_description_changes_the_ask() {
 }
 
 #[test]
-fn only_a_screen_with_the_always_allow_confirmation_stage_may_allow() {
+fn neither_button_row_offers_an_allow() {
     let later = screen("permission").replace("Allow always", "Always allow");
 
-    let ask = ask_screen(&later).expect("a permission");
-
-    assert_eq!(choices(&ask), [("deny", vec!["esc"])]);
+    for screen in [screen("permission"), later] {
+        assert_eq!(choices(&ask_screen(&screen).expect("a permission")), [("deny", vec!["esc"])]);
+    }
 }
 
 #[test]
-fn a_command_that_could_have_been_cut_by_the_sidebar_cannot_be_allowed() {
+fn text_after_a_gap_inside_a_prompt_line_gives_no_ask() {
     let bar = "  ┃  $ touch /private/tmp/claude-501/ccn/proj/oc.txt";
     let cut = screen("permission").replace(bar, &format!("{bar}           && rm -rf x"));
     let long_gap = screen("permission").replace(bar, "  ┃  $ touch           /private/tmp/claude-501/ccn/proj/oc.txt");
+    let option = screen("question").replace("2. Green", "2. Green          (delete production)");
+    let description = screen("question").replace("The colour blue", "The colour blue           (and more)");
+    let title = screen("question").replace("Which colour do you prefer?", "Which colour?           Really?");
 
-    for screen in [cut, long_gap] {
-        let ask = ask_screen(&screen).expect("a permission");
-        assert_eq!(choices(&ask), [("deny", vec!["esc"])]);
+    for screen in [cut, long_gap, option, description, title] {
+        assert_eq!(ask_screen(&screen), None);
+    }
+}
+
+#[test]
+fn indented_content_below_the_prompt_is_not_the_sidebar() {
+    for name in ["permission", "question"] {
+        let below = format!("{}\n{}another prompt\n", screen(name), " ".repeat(10));
+
+        assert_eq!(ask_screen(&below), None, "{name}");
+    }
+}
+
+#[test]
+fn text_reaching_the_sidebar_may_have_been_cut_by_it() {
+    let with = |n: usize| {
+        screen("question").replace("  ┃     The colour red", &format!("  ┃     The colour red{}", "x".repeat(n)))
+    };
+
+    assert!(ask_screen(&with(100)).is_some());
+    assert_eq!(ask_screen(&with(150)), None);
+}
+
+#[test]
+fn a_screen_without_a_sidebar_is_read_whole() {
+    for name in ["permission", "question"] {
+        let narrow: String = screen(name).lines().map(|l| l.chars().take(164).collect::<String>() + "\n").collect();
+
+        assert!(ask_screen(&narrow).is_some(), "{name}");
     }
 }
 
@@ -117,6 +142,13 @@ fn a_question_below_another_prompt_or_a_tab_strip_gives_no_ask() {
         .replace("  ┃  Which colour do you prefer?", "  ┃  Colour  Size\n  ┃  Which colour do you prefer?");
 
     assert_eq!(ask_screen(&strip), None);
+}
+
+#[test]
+fn a_prompt_without_a_sidebar_but_with_text_after_a_gap_gives_no_ask() {
+    let narrow: String = screen("question").lines().map(|l| l.chars().take(164).collect::<String>() + "\n").collect();
+
+    assert_eq!(ask_screen(&narrow.replace("2. Green", "2. Green          (delete production)")), None);
 }
 
 #[test]

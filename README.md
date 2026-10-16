@@ -35,10 +35,12 @@ Every supported agent gets the same answering, only where the plugin can read it
 |-------|------------|-----------------|------|-------------|
 | Claude Code | `allow`, `deny` | one button per option | the option's digit | live screens (2.1.296, 2.1.302) |
 | Codex | command approvals: `allow`, `deny` | one per option (not "None of the above") | the digit | live screens (0.163.0) |
-| opencode | `allow` (only with its "Allow always" confirmation stage), `deny` | one per option (not "Type your own answer") | `enter` / `esc`; the digit | live screens (1.19.3) |
+| opencode | `deny` only (see below) | one per option (not "Type your own answer") | `esc`; the digit | live screens (1.19.3) |
 | Gemini CLI | `allow` ("Allow once" only), `deny` | one per option (not the custom row) | the digit | its upstream snapshots (0.64.0), no live screen yet |
-| Grok Build | `allow`, `deny` | one per option (not the free-text row) | the digit | its source, hand-made fixtures, no live screen yet |
+| Grok Build | `allow`, `deny` | `open` only (see below) | the digit | its source, hand-made fixtures, no live screen yet |
 | Cursor CLI | `allow`, `deny` | one per option (one question only) | `y` / `n`; `up`…`down`…`enter` | its source, hand-made fixtures, no live screen yet |
+
+opencode's permission prompt has no `allow`: its only way to allow is Enter on the highlighted button, and the highlight (a background colour) can be moved by the keyboard or by the mouse hovering over the panel without anything changing in the screen text, so Enter could reject. An `allow` would need cornercase's `read` to expose the highlight (cell styles). Until then the card offers `deny` (Esc, which rejects from any highlight) and `open`. Grok Build's questions get `open` only: a digit is typed as text while its cursor is on the free-text row, and plain text cannot show where the cursor is.
 
 Never offered, for any agent: a free-text or "Other" row, a row that remembers a choice (always allow, don't ask again, an allowlist, run everything), several questions at once, multiple selection.
 

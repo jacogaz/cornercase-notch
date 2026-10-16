@@ -48,7 +48,6 @@ fn no_agent_reads_another_agents_screen() {
         ("gemini", include_str!("../../tests/fixtures/gemini/0.64.0/prompts/permission.txt")),
         ("gemini", include_str!("../../tests/fixtures/gemini/0.64.0/prompts/question.txt")),
         ("grok", include_str!("../../tests/fixtures/grok/1.0.45/prompts/permission.txt")),
-        ("grok", include_str!("../../tests/fixtures/grok/1.0.45/prompts/question.txt")),
         ("cursor", include_str!("../../tests/fixtures/cursor/2026.01.23/prompts/permission.txt")),
         ("cursor", include_str!("../../tests/fixtures/cursor/2026.01.23/prompts/question.txt")),
     ];
