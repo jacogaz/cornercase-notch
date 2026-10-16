@@ -4,18 +4,12 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
 
-use crate::agents::claude::ask::ask_screen;
-use crate::agents::label;
+use crate::agents::{answers, ask_screen, label};
 use crate::ask::Ask;
 use crate::cornercase::{Event, Pane};
 use crate::notch::{Board, Card, Kind};
 
-const CLAUDE: &str = "claude";
 const FLASH_FOR: Duration = Duration::from_secs(10);
-
-pub(crate) fn answers(agent: &str) -> bool {
-    agent == CLAUDE
-}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub(crate) struct Entry {
@@ -98,7 +92,8 @@ pub(crate) fn build(
             "done" => (Kind::Done, tracker.started(pane, status)),
             "failed" => (Kind::Failed, tracker.started(pane, status)),
             "waiting" => {
-                let ask = if answers(agent) { screen(pane.pane).and_then(|screen| ask_screen(&screen)) } else { None };
+                let ask =
+                    if answers(agent) { screen(pane.pane).and_then(|screen| ask_screen(agent, &screen)) } else { None };
                 (ask.map_or(Kind::Waiting, Kind::Asks), tracker.started(pane, status))
             }
             "idle" => match tracker.flashes.get(&pane.pane).filter(|at| flash_live(**at, now)) {
@@ -138,11 +133,12 @@ fn title(pane: &Pane, place: &str) -> String {
 }
 
 pub(crate) fn still_asks(ask: &Ask, key: char, pane: Option<&Pane>, screen: impl FnOnce() -> Option<String>) -> bool {
-    let claude = pane
-        .is_some_and(|pane| pane.agent.as_deref().is_some_and(answers) && pane.status.as_deref() == Some("waiting"));
-    claude
-        && ask.choices.iter().any(|choice| choice.key == key)
-        && screen().and_then(|s| ask_screen(&s)).as_ref() == Some(ask)
+    let waiting = pane.filter(|pane| pane.status.as_deref() == Some("waiting"));
+    let Some(agent) = waiting.and_then(|pane| pane.agent.as_deref()).filter(|agent| answers(agent)) else {
+        return false;
+    };
+    ask.choices.iter().any(|choice| choice.key == key)
+        && screen().and_then(|s| ask_screen(agent, &s)).as_ref() == Some(ask)
 }
 
 #[cfg(test)]

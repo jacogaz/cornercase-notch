@@ -74,3 +74,13 @@ fn a_wrapped_option_is_read_whole() {
 
     assert!(ask_screen(&screen).is_some());
 }
+
+#[test]
+fn a_question_from_a_later_claude_code_still_parses() {
+    let ask = ask_screen(fixture!("claude/2.1.302/prompts/question.txt")).expect("a question");
+
+    assert_eq!(
+        (ask.question, ask.title.as_str(), ask.detail.as_str(), choices(&ask)),
+        (true, "Which colour do you prefer?", "Colour", vec![("Red", '1'), ("Green", '2'), ("Blue", '3')])
+    );
+}

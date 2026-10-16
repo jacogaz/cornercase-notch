@@ -96,6 +96,7 @@ fn screens_are_read_only_for_waiting_panes_of_agents_that_answer() {
         claude(3, 1, "done", false),
         claude(4, 1, "idle", false),
         r#"{"pane":5,"tab":2,"agent":"codex","status":"waiting"}"#.to_string(),
+        r#"{"pane":7,"tab":2,"agent":"gemini","status":"waiting"}"#.to_string(),
         r#"{"pane":6,"tab":2,"status":null}"#.to_string(),
     ];
     let read = Cell::new(Vec::new());
@@ -108,7 +109,10 @@ fn screens_are_read_only_for_waiting_panes_of_agents_that_answer() {
         None
     });
 
-    assert_eq!((read.take(), kinds(&built)), (vec![2], vec![(2, "waiting"), (5, "waiting"), (3, "done")]));
+    assert_eq!(
+        (read.take(), kinds(&built)),
+        (vec![2, 5], vec![(2, "waiting"), (5, "waiting"), (7, "waiting"), (3, "done")])
+    );
 }
 
 #[rstest]
@@ -276,7 +280,7 @@ fn a_closed_pane_is_forgotten() {
 }
 
 fn ask_of(name: &str) -> Ask {
-    ask_screen(&screen(name)).expect("an ask")
+    ask_screen("claude", &screen(name)).expect("an ask")
 }
 
 fn waiting() -> Pane {
