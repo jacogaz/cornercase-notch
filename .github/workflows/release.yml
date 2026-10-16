@@ -31,7 +31,9 @@ jobs:
 
       - name: check out the tag to resume from
         if: steps.decide.outputs.release == 'resume'
-        run: git checkout --detach "v${{ steps.decide.outputs.version }}"
+        env:
+          COMMIT: ${{ steps.decide.outputs.commit }}
+        run: git checkout --detach "$COMMIT"
 
       - name: toolchain
         if: steps.decide.outputs.release != 'no'
@@ -55,4 +57,6 @@ jobs:
 
       - name: publish
         if: steps.decide.outputs.release != 'no'
-        run: .github/publish.sh "${{ steps.decide.outputs.release }}"
+        env:
+          MODE: ${{ steps.decide.outputs.release }}
+        run: .github/publish.sh "$MODE"

@@ -142,7 +142,7 @@ fails publish resume || bad "an archive that differs from the manifest's sha256 
 ok "resume refuses archives whose checksums differ from the manifest's"
 
 # --- resume: a tag on a commit that is not a genuine release commit is never pushed to main
-for kind in author source other-field extra-table; do
+for kind in author source other-field extra-table cargo-version; do
     scratch
     base=$(git rev-parse HEAD)
     .github/manifest.sh cornercase-plugin.toml 0.1.0 "$tmp/dist"
@@ -150,6 +150,7 @@ for kind in author source other-field extra-table; do
     case $kind in
         source) echo '// sneaky' >>src/main.rs; git add -A ;;
         extra-table) printf '\n[[window]]\nid = "evil"\ncommand = ["bin/evil"]\n' >>cornercase-plugin.toml ;;
+        cargo-version) sed -i.bak 's/^version = "0.1.0"/version = "0.9.0"/' Cargo.toml && rm Cargo.toml.bak ;;
         other-field) sed -i.bak 's/^id = "x"/id = "y"/' cornercase-plugin.toml && rm cornercase-plugin.toml.bak ;;
     esac
     git add -A
@@ -163,6 +164,8 @@ for kind in author source other-field extra-table; do
     fails publish resume || bad "a tag on a $kind-tampered commit was pushed to main"
     [ "$(git -C "$tmp/origin.git" rev-parse main)" = "$base" ] || bad "main moved for a $kind-tampered tag"
 done
+# shellcheck disable=SC1091
+( . .github/lib.sh; version=keep parent=keep work=keep sum=keep; genuine_release HEAD main || true; [ "$version$parent$work$sum" = keepkeepkeepkeep ] ) || bad "genuine_release changed its caller's variables"
 ok "a tag alone never drives a push to main"
 
 # --- resume: main moved on

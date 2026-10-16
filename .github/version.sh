@@ -81,6 +81,9 @@ release() {
     if [ -n "${GITHUB_OUTPUT:-}" ]; then
         echo "release=$answer" >>"$GITHUB_OUTPUT"
         echo "version=$version" >>"$GITHUB_OUTPUT"
+        if [ "$answer" = resume ]; then
+            echo "commit=$commit" >>"$GITHUB_OUTPUT"
+        fi
     fi
 }
 
