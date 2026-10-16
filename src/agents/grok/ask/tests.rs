@@ -92,3 +92,23 @@ fn a_single_choice_question_offers_a_digit_per_option_but_not_the_free_text_row(
 fn another_question_gives_no_ask(#[case] from: &str, #[case] to: &str) {
     assert_eq!(ask_screen(&question_screen().replace(from, to)), None);
 }
+
+#[test]
+fn the_title_must_be_the_first_line_of_the_card_and_no_other_line_may_look_like_one() {
+    let late = permission_screen().replace(
+        "▌  Allow `cargo`?\n▌  cargo test --workspace",
+        "▌  Something\n▌  Allow `cargo`?\n▌  cargo test --workspace",
+    );
+    let second = permission_screen().replace("▌  cargo test --workspace", "▌  cargo test --workspace\n▌  Allow `rm`?");
+
+    assert_eq!((ask_screen(&late), ask_screen(&second)), (None, None));
+}
+
+#[test]
+fn a_line_that_only_looks_like_the_hint_is_part_of_the_command() {
+    let other = permission_screen().replace("← → narrow scope  ·  e edit pattern", "← rm -rf target");
+
+    let ask = ask_screen(&other).expect("a permission");
+
+    assert_eq!(ask.detail, "cargo test --workspace\n\n← rm -rf target");
+}

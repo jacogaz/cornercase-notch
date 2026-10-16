@@ -5,6 +5,7 @@ const ALLOW_LABELS: [&str; 2] = ["Yes, proceed", "Yes"];
 const DENY_LABEL: &str = "No, reject (type to add feedback)";
 const TITLE_START: &str = "Allow ";
 const EXPAND_HINT: &str = "Ctrl-F";
+const SCOPE_HINT: &str = "← → narrow scope  ·  e edit pattern";
 const FREE_TEXT: char = 'z';
 
 pub(crate) fn ask_screen(screen: &str) -> Option<Ask> {
@@ -64,11 +65,15 @@ fn permission(body: &[&str]) -> Option<Ask> {
     if !digits_in_order || found.iter().filter(|(_, cursor, _)| *cursor).count() != 1 {
         return None;
     }
-    let title = (0..start).rev().find(|&i| body[i].starts_with(TITLE_START) && body[i].ends_with('?'))?;
+    let is_title = |line: &str| line.starts_with(TITLE_START) && line.ends_with('?');
+    let title = body[..start].iter().position(|line| !line.is_empty()).filter(|&i| is_title(body[i]))?;
     let mut command = Vec::new();
     let mut elided = false;
     for line in &body[title + 1..start] {
-        if line.is_empty() || line.starts_with('←') {
+        if is_title(line) {
+            return None;
+        }
+        if *line == SCOPE_HINT {
             continue;
         }
         if line.starts_with("...") && line.contains(EXPAND_HINT) {
@@ -76,6 +81,12 @@ fn permission(body: &[&str]) -> Option<Ask> {
         } else {
             command.push(*line);
         }
+    }
+    while command.first().is_some_and(|line| line.is_empty()) {
+        command.remove(0);
+    }
+    while command.last().is_some_and(|line| line.is_empty()) {
+        command.pop();
     }
     let number =
         |label: &dyn Fn(&str) -> bool| found.iter().find(|(_, _, l)| label(l)).and_then(|(k, _, _)| k.to_digit(10));
