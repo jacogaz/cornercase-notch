@@ -1,6 +1,6 @@
 [package]
 name = "cornercase-notch"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "A cornercase plugin that shows the coding agents that need you in the macOS notch"
 repository = "https://github.com/jacogaz/cornercase-notch"

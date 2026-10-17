@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+
+- The plugin's permissions are now short words (`status`, `read`, `keys`, `focus`), so the catalogue at usecornercase.dev/plugins/ lists it, and its description no longer says it answers only Claude Code.
+
 ## 0.1.0
 
 - First release. Coding agents that wait for you, failed or finished appear in a pill at the macOS notch, which opens into cards. Click one to show its pane and bring your terminal forward.
