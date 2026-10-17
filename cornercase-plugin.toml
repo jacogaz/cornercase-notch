@@ -13,3 +13,11 @@ permissions = [
 [[window]]
 id = "panel"
 command = ["bin/cornercase-notch", "panel"]
+
+[download.aarch64-apple-darwin]
+url = "https://github.com/jacogaz/cornercase-notch/releases/download/v0.1.0/cornercase-notch-aarch64-apple-darwin.tar.gz"
+sha256 = "d8d57c82ed0e5d49856edbd3ab3f6619351bc91b80cba677cd92ea7d48469844"
+
+[download.x86_64-apple-darwin]
+url = "https://github.com/jacogaz/cornercase-notch/releases/download/v0.1.0/cornercase-notch-x86_64-apple-darwin.tar.gz"
+sha256 = "68531078f28964a43923fec7af266a62771bcea40c74292c3ed3aec56d9f7ea4"
