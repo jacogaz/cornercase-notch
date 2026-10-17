@@ -1,6 +1,6 @@
 id = "jacogaz.notch"
 name = "Notch"
-version = "0.1.0"
+version = "0.1.1"
 api = 1
 description = "A plugin for cornercase that shows the coding agents that need you in the macOS notch, and answers their permission prompts and questions there."
 platforms = ["macos"]
@@ -11,9 +11,9 @@ id = "panel"
 command = ["bin/cornercase-notch", "panel"]
 
 [download.aarch64-apple-darwin]
-url = "https://github.com/jacogaz/cornercase-notch/releases/download/v0.1.0/cornercase-notch-aarch64-apple-darwin.tar.gz"
-sha256 = "d8d57c82ed0e5d49856edbd3ab3f6619351bc91b80cba677cd92ea7d48469844"
+url = "https://github.com/jacogaz/cornercase-notch/releases/download/v0.1.1/cornercase-notch-aarch64-apple-darwin.tar.gz"
+sha256 = "e813f874b3229357c3653cb2b9d27705a391e5f21838cb07e4030844e890043b"
 
 [download.x86_64-apple-darwin]
-url = "https://github.com/jacogaz/cornercase-notch/releases/download/v0.1.0/cornercase-notch-x86_64-apple-darwin.tar.gz"
-sha256 = "68531078f28964a43923fec7af266a62771bcea40c74292c3ed3aec56d9f7ea4"
+url = "https://github.com/jacogaz/cornercase-notch/releases/download/v0.1.1/cornercase-notch-x86_64-apple-darwin.tar.gz"
+sha256 = "0937d67412a929fe7c5ef9f2e8e8cef05bd623efcd67512aa8013dd214015481"
