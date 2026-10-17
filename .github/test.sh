@@ -74,8 +74,9 @@ for target in aarch64-apple-darwin x86_64-apple-darwin; do
 done
 [ "$(grep -c '^sha256 = "[0-9a-f]\{64\}"$' "$tmp/manifest.toml")" = 2 ] || bad "sha256 lines"
 [ "$(grep -c '^\[download\.' "$tmp/manifest.toml")" = 2 ] || bad "download tables"
-sed 's/^version = ".*"$/version = "X"/' "$here/cornercase-plugin.toml" >"$tmp/a.toml"
-head -n "$(awk '/^\[download\./ { print NR - 2; exit }' "$tmp/manifest.toml")" "$tmp/manifest.toml" | sed 's/^version = ".*"$/version = "X"/' | cmp -s - "$tmp/a.toml" || bad "the rest of the manifest changed"
+before_downloads() { awk '/^\[download\./ { exit } { print }' "$1" | sed 's/^version = ".*"$/version = "X"/'; }
+before_downloads "$here/cornercase-plugin.toml" >"$tmp/a.toml"
+before_downloads "$tmp/manifest.toml" | cmp -s - "$tmp/a.toml" || bad "the rest of the manifest changed"
 ok "manifest.sh sets the version and the downloads"
 
 # --- package.sh
