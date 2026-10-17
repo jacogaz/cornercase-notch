@@ -1,6 +1,6 @@
 # cornercase-notch
 
-A plugin for [cornercase](https://github.com/usecornercase/cornercase-terminal) that shows the coding agents that need you at the top centre of your Mac's screen, hanging from the notch (or from the top edge on a Mac without one), and lets you answer Claude Code's permission prompts and questions there.
+A plugin for [cornercase](https://github.com/usecornercase/cornercase-terminal) that shows the coding agents that need you at the top centre of your Mac's screen, hanging from the notch (or from the top edge on a Mac without one), and lets you answer their permission prompts and questions there.
 
 cornercase already tells you in its sidebar that an agent is waiting. This plugin is for when you are looking at something else: a small pill appears at the notch, and a click takes you to the pane.
 
