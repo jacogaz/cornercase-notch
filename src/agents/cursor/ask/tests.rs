@@ -15,84 +15,120 @@ fn choices(ask: &Ask) -> Vec<(&str, String)> {
     ask.choices.iter().map(|c| (c.label.as_str(), c.keys.join(" "))).collect()
 }
 
-#[test]
-fn a_command_prompt_offers_y_to_run_once_and_n_to_skip() {
-    let ask = ask_screen(&permission_screen()).expect("a prompt");
+/// `replace` on the lines holding `from`, keeping each line as wide as it was so the box stays a box.
+fn swap(screen: &str, from: &str, to: &str) -> String {
+    let lines: Vec<String> = screen
+        .lines()
+        .map(|line| match line.strip_suffix('│').filter(|_| line.contains(from)) {
+            Some(text) => {
+                let width = text.chars().count();
+                let text = text.trim_end().replace(from, to);
+                format!("{text}{}│", " ".repeat(width.saturating_sub(text.chars().count())))
+            }
+            None => line.to_string(),
+        })
+        .collect();
+    lines.join("\n")
+}
+
+fn reading(name: &str) -> Option<Ask> {
+    ask_screen(match name {
+        "permission.txt" => fixture!("cursor/2026.01.23/prompts/permission.txt"),
+        "permission-2.txt" => fixture!("cursor/2026.01.23/prompts/permission-2.txt"),
+        "reject-reason.txt" => fixture!("cursor/2026.01.23/prompts/reject-reason.txt"),
+        _ => fixture!("cursor/2026.01.23/prompts/chat-question.txt"),
+    })
+}
+
+#[rstest]
+#[case::first("permission.txt", "touch /private/tmp/claude-501/ccn/proj/cu.txt")]
+#[case::second("permission-2.txt", "touch /private/tmp/claude-501/ccn/proj/cu2.txt")]
+fn a_live_command_prompt_offers_y_to_run_once_and_q_to_reject(#[case] name: &str, #[case] command: &str) {
+    let ask = reading(name).expect("a prompt");
 
     assert_eq!(
         (ask.question, ask.title.as_str(), ask.detail.as_str(), choices(&ask)),
-        (
-            false,
-            "Run this command?",
-            "$ git push origin main in ~/repo",
-            vec![("allow", "y".to_string()), ("deny", "n".to_string())]
-        )
+        (false, "Run this command?", command, vec![("allow", "y".to_string()), ("deny", "q".to_string())])
     );
 }
 
 #[test]
-fn the_allowlist_and_run_everything_rows_are_never_offered() {
-    let ask = ask_screen(&permission_screen()).expect("a prompt");
+fn the_allowlist_and_run_everything_rows_and_n_are_never_offered() {
+    let ask = reading("permission.txt").expect("a prompt");
 
-    assert_eq!(ask.choices.len(), 2);
-    assert!(ask.choices.iter().all(|c| c.keys != ["tab"] && c.keys != ["shift+tab"]));
+    assert!(ask.choices.iter().all(|c| c.keys == ["y"] || c.keys == ["q"]));
+}
+
+#[test]
+fn the_reject_reason_box_and_a_question_written_as_chat_give_no_ask() {
+    assert_eq!((reading("reject-reason.txt"), reading("chat-question.txt")), (None, None));
+}
+
+#[test]
+fn the_fingerprint_holds_both_boxes() {
+    let ask = reading("permission.txt").expect("a prompt");
+
+    assert!(ask.fingerprint.contains("$  touch") && ask.fingerprint.contains("Skip (esc or n)"));
+    assert_ne!(Some(ask), reading("permission-2.txt"));
+}
+
+#[test]
+fn without_the_command_box_the_not_in_allowlist_line_is_the_command() {
+    let screen = permission_screen();
+    let lines: Vec<&str> = screen.lines().collect();
+    let cut = lines.iter().position(|l| l.contains("$  touch")).expect("the command box");
+    let screen = [&lines[..cut - 1], &lines[cut + 2..]].concat().join("\n");
+
+    let ask = ask_screen(&screen).expect("a prompt");
+
+    assert_eq!((ask.detail.as_str(), choices(&ask).len()), ("touch /private/tmp/claude-501/ccn/proj/cu.txt", 2));
+}
+
+#[test]
+fn a_command_that_reaches_the_right_border_could_be_cut_so_it_is_not_offered_for_allow() {
+    let screen: Vec<String> = permission_screen()
+        .lines()
+        .map(|line| match (line.contains("$  touch"), line.trim_end().strip_suffix('│')) {
+            (true, Some(text)) => format!("{}{}│", text.trim_end(), "x".repeat(text.len() - text.trim_end().len())),
+            _ => line.to_string(),
+        })
+        .collect();
+
+    assert_eq!(choices(&ask_screen(&screen.join("\n")).expect("a prompt")), [("deny", "q".to_string())]);
 }
 
 #[rstest]
-#[case::delete("Run this command?", "Delete this file?", "Run (once) (y)", "Delete (y)", "Skip (esc or n)", "Keep (n)")]
-#[case::sandbox(
-    "Run this command?",
-    "Run this command outside the sandbox?",
-    "Skip (esc or n)",
-    "Skip (esc or n)",
-    "x",
-    "x"
-)]
-#[case::web_search("Run this command?", "Allow this web search?", "Run (once) (y)", "Allow search (y)", "x", "x")]
+#[case::text_after_the_box("\n  Auto · 8.5%\n")]
+#[case::another_box_after("\n┌──┐\n│ → Add a follow-up │\n└──┘\n")]
+fn anything_after_the_decision_box_gives_no_ask(#[case] after: &str) {
+    assert_eq!(ask_screen(&format!("{}{after}", permission_screen())), None);
+}
+
+#[rstest]
+#[case::no_skip_row("Skip (esc or n)", "Skip (esc)")]
+#[case::another_skip_row("Skip (esc or n)", "Skip (n)")]
+#[case::another_title("Run this command?", "Run this thing?")]
+fn a_prompt_that_is_not_the_known_one_gives_no_ask(#[case] from: &str, #[case] to: &str) {
+    assert_eq!(ask_screen(&swap(&permission_screen(), from, to)), None);
+}
+
+#[test]
+fn without_a_run_row_only_reject_is_offered() {
+    let ask = ask_screen(&swap(&permission_screen(), "Run (once) (y)", "Run (once)")).expect("a prompt");
+
+    assert_eq!(choices(&ask), [("deny", "q".to_string())]);
+}
+
+#[rstest]
+#[case::delete("Run this command?", "Delete this file?", "Run (once) (y)", "Delete (y)")]
+#[case::web_search("Run this command?", "Allow this web search?", "Run (once) (y)", "Allow search (y)")]
 fn the_known_titles_and_rows_are_read(
     #[case] title: &str,
     #[case] other_title: &str,
     #[case] allow: &str,
     #[case] other_allow: &str,
-    #[case] deny: &str,
-    #[case] other_deny: &str,
 ) {
-    let screen = permission_screen().replace(title, other_title).replace(allow, other_allow).replace(deny, other_deny);
-
-    assert!(ask_screen(&screen).is_some());
-}
-
-#[test]
-fn a_prompt_without_a_y_row_offers_deny_only_and_without_an_n_row_allow_only() {
-    let no_allow = permission_screen().replace("Run (once) (y) (enter)", "Run (once) (enter)");
-    let no_deny = permission_screen().replace("Skip (esc or n)", "Skip (esc)");
-
-    assert_eq!(
-        (choices(&ask_screen(&no_allow).expect("a prompt")), choices(&ask_screen(&no_deny).expect("a prompt"))),
-        (vec![("deny", "n".to_string())], vec![("allow", "y".to_string())])
-    );
-}
-
-#[rstest]
-#[case::a_title_not_in_the_list("Run this command?", "Run this thing?")]
-#[case::no_rule_above("──────────────────────────────────────────────────\n", "")]
-#[case::neither_row("Run (once) (y) (enter)", "Run (once) (enter)")]
-fn anything_else_gives_no_prompt(#[case] from: &str, #[case] to: &str) {
-    let screen = permission_screen().replace(from, to).replace("Skip (esc or n)", "Skip");
-
-    assert_eq!(ask_screen(&screen), None);
-}
-
-#[test]
-fn text_after_the_prompt_gives_no_ask() {
-    assert_eq!(ask_screen(&format!("{}\n some output\n", permission_screen())), None);
-}
-
-#[test]
-fn a_changed_command_in_the_banner_changes_the_ask() {
-    let changed = permission_screen().replace("git push origin main", "git push --force   ");
-
-    assert_ne!(ask_screen(&changed), ask_screen(&permission_screen()));
+    assert!(ask_screen(&swap(&swap(&permission_screen(), title, other_title), allow, other_allow)).is_some());
 }
 
 #[test]

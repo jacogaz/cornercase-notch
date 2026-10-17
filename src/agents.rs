@@ -14,9 +14,14 @@ pub(crate) fn answers(agent: &str) -> bool {
 }
 
 /// opencode's status stays `working` while it waits for a permission or an answer, so its working panes
-/// are read too. This is the only exception, and everything that depends on it asks here.
+/// are read too; cornercase reports Cursor as `idle` during its prompts, so its idle and working panes are
+/// read. These are the only exceptions, and everything that depends on them asks here.
 pub(crate) fn polled(agent: &str, status: &str) -> bool {
-    agent == "opencode" && status == "working"
+    match agent {
+        "opencode" => status == "working",
+        "cursor" => status == "idle" || status == "working",
+        _ => false,
+    }
 }
 
 /// Whether the screen of a pane with this agent and status can hold a prompt worth reading.

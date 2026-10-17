@@ -13,6 +13,10 @@ Screens of coding agents waiting for an answer, as `cornercase read --pane N` (o
 - `opencode/1.19.3/prompts/`: opencode 1.19.3 (live), with its sidebar on the prompt's lines: `permission.txt` (digits do nothing; Esc rejects; Enter acts on a highlight the screen text does not show, so it is never pressed), `always-confirm.txt` (the confirmation stage Enter on `Allow always` opens; Esc goes back) and `question.txt` (a digit selects and submits). opencode's status stays `working` during both prompts.
 - `gemini/0.64.0/prompts/`: **transcribed from Gemini CLI's own test snapshots** (`ToolConfirmationQueue` and `AskUserDialog`), not captured from a live session, since it needs a login. The tool box is re-drawn at a fixed 80 columns.
 - `grok/1.0.45/prompts/`: **made by hand** from Grok Build's source (`permission_view.rs`, `question_view.rs`), not captured; `question.txt` is kept as a screen that gets no ask, since it needs a login. The accent bar is assumed to be one character followed by two spaces.
-- `cursor/2026.01.23/prompts/`: **made by hand** from the installed bundle's source, not captured, since it needs a login.
+- `cursor/2026.01.23/prompts/`: Cursor Agent 2026.01.23 (live; `cursor-agent` 2026.01.23-916f423).
+  - `permission.txt`, `permission-2.txt`: a shell command prompt, a box at the bottom of the screen with a box above it holding `$  <command> in <dir>`. `y` runs the command once; `n` does not deny, it opens the reason box (Enter on an empty reason returns to the same prompt); `q` rejects outright. cornercase reports the pane as `idle` during the prompt.
+  - `reject-reason.txt`: what `n` opens, a `Reason for rejection` box. It gets no ask.
+  - `chat-question.txt`: the model wrote a question as chat, so it is not a question prompt and gets no ask.
+  - `question.txt`: **made by hand** from the installed bundle's source (Cursor's question tool could not be triggered live).
 
 Where a fixture is not live, the parser reads the wording the source says, and a newer release that words it differently is simply not recognised (the card gets `open`).

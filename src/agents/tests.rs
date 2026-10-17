@@ -49,6 +49,7 @@ fn no_agent_reads_another_agents_screen() {
         ("gemini", include_str!("../../tests/fixtures/gemini/0.64.0/prompts/question.txt")),
         ("grok", include_str!("../../tests/fixtures/grok/1.0.45/prompts/permission.txt")),
         ("cursor", include_str!("../../tests/fixtures/cursor/2026.01.23/prompts/permission.txt")),
+        ("cursor", include_str!("../../tests/fixtures/cursor/2026.01.23/prompts/permission-2.txt")),
         ("cursor", include_str!("../../tests/fixtures/cursor/2026.01.23/prompts/question.txt")),
     ];
     let agents = ["claude", "codex", "opencode", "gemini", "grok", "cursor"];
@@ -61,14 +62,16 @@ fn no_agent_reads_another_agents_screen() {
 }
 
 #[test]
-fn only_opencode_is_read_while_working() {
-    let working: Vec<&str> = ["claude", "codex", "opencode", "gemini", "grok", "cursor", "aider"]
-        .into_iter()
-        .filter(|agent| reads_screen(agent, "working"))
-        .collect();
+fn only_opencode_is_read_while_working_and_cursor_while_idle_or_working() {
+    let read = |status: &str| -> Vec<&str> {
+        ["claude", "codex", "opencode", "gemini", "grok", "cursor", "aider"]
+            .into_iter()
+            .filter(|agent| reads_screen(agent, status))
+            .collect()
+    };
 
     assert_eq!(
-        (working, reads_screen("claude", "waiting"), reads_screen("aider", "waiting")),
-        (vec!["opencode"], true, false)
+        (read("working"), read("idle"), reads_screen("claude", "waiting"), reads_screen("aider", "waiting")),
+        (vec!["opencode", "cursor"], vec!["cursor"], true, false)
     );
 }

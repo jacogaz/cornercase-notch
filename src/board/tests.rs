@@ -89,7 +89,7 @@ fn a_screen_that_cannot_be_read_is_just_waiting() {
 }
 
 #[test]
-fn screens_are_read_only_for_waiting_panes_of_agents_that_answer_and_working_opencode_panes() {
+fn screens_are_read_only_for_waiting_panes_of_agents_that_answer_and_working_opencode_and_idle_cursor_panes() {
     let rows = [
         claude(1, 1, "working", false),
         claude(2, 1, "waiting", false),
@@ -98,6 +98,7 @@ fn screens_are_read_only_for_waiting_panes_of_agents_that_answer_and_working_ope
         r#"{"pane":5,"tab":2,"agent":"codex","status":"waiting"}"#.to_string(),
         r#"{"pane":7,"tab":2,"agent":"aider","status":"waiting"}"#.to_string(),
         r#"{"pane":8,"tab":2,"agent":"opencode","status":"working"}"#.to_string(),
+        r#"{"pane":9,"tab":2,"agent":"cursor","status":"idle"}"#.to_string(),
         r#"{"pane":6,"tab":2,"status":null}"#.to_string(),
     ];
     let read = Cell::new(Vec::new());
@@ -112,7 +113,7 @@ fn screens_are_read_only_for_waiting_panes_of_agents_that_answer_and_working_ope
 
     assert_eq!(
         (read.take(), kinds(&built)),
-        (vec![2, 5, 8], vec![(2, "waiting"), (5, "waiting"), (7, "waiting"), (3, "done")])
+        (vec![2, 5, 8, 9], vec![(2, "waiting"), (5, "waiting"), (7, "waiting"), (3, "done")])
     );
 }
 
@@ -455,4 +456,16 @@ fn a_working_opencode_prompt_can_be_answered_but_a_working_claude_cannot() {
         [&opencode, &claude].map(|pane| still_asks(&ask, 0, Some(pane), || Some(prompt.to_string()))),
         [true, false]
     );
+}
+
+#[test]
+fn an_idle_cursor_pane_gets_a_card_only_while_its_screen_shows_a_prompt() {
+    let rows = panes(&[r#"{"pane":9,"tab":2,"agent":"cursor","status":"idle"}"#]);
+    let prompt = include_str!("../../tests/fixtures/cursor/2026.01.23/prompts/permission.txt");
+    let chat = include_str!("../../tests/fixtures/cursor/2026.01.23/prompts/chat-question.txt");
+
+    let asking = build(&rows, &Tracker::default(), at(0), |_| Some(prompt.to_string()));
+    let quiet = build(&rows, &Tracker::default(), at(0), |_| Some(chat.to_string()));
+
+    assert_eq!((kinds(&asking), kinds(&quiet)), (vec![(9, "permission")], vec![]));
 }

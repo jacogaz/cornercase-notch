@@ -88,10 +88,12 @@ pub(crate) fn build(
     for pane in panes {
         let Some(agent) = pane.agent.as_deref().filter(|agent| !agent.is_empty()) else { continue };
         let status = pane.status.as_deref().unwrap_or_default();
-        let (kind, since) = match status {
-            "done" => (Kind::Done, tracker.started(pane, status)),
-            "failed" => (Kind::Failed, tracker.started(pane, status)),
-            "waiting" => {
+        let polled_ask =
+            polled(agent, status).then(|| screen(pane.pane).and_then(|screen| ask_screen(agent, &screen))).flatten();
+        let (kind, since) = match (status, polled_ask) {
+            ("done", _) => (Kind::Done, tracker.started(pane, status)),
+            ("failed", _) => (Kind::Failed, tracker.started(pane, status)),
+            ("waiting", _) => {
                 let ask = if reads_screen(agent, status) {
                     screen(pane.pane).and_then(|screen| ask_screen(agent, &screen))
                 } else {
@@ -99,11 +101,8 @@ pub(crate) fn build(
                 };
                 (ask.map_or(Kind::Waiting, Kind::Asks), tracker.started(pane, status))
             }
-            _ if polled(agent, status) => match screen(pane.pane).and_then(|screen| ask_screen(agent, &screen)) {
-                Some(ask) => (Kind::Asks(ask), None),
-                None => continue,
-            },
-            "idle" => match tracker.flashes.get(&pane.pane).filter(|at| flash_live(**at, now)) {
+            (_, Some(ask)) => (Kind::Asks(ask), None),
+            ("idle", _) => match tracker.flashes.get(&pane.pane).filter(|at| flash_live(**at, now)) {
                 Some(at) => (Kind::Done, secs(*at)),
                 None => continue,
             },

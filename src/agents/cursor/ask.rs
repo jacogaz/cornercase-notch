@@ -1,7 +1,5 @@
 use crate::ask::{ALLOW, Ask, Choice, DENY};
 
-const RULE: char = '─';
-const RULE_MIN: usize = 8;
 const TITLES: [&str; 8] = [
     "Run this command?",
     "Run this command outside the sandbox?",
@@ -13,7 +11,8 @@ const TITLES: [&str; 8] = [
     "Proceed with this edit?",
 ];
 const ALLOWS: [&str; 4] = ["Run (once) (y)", "Proceed (y)", "Delete (y)", "Allow search (y)"];
-const DENY_HINTS: [&str; 2] = [" (esc or n)", " (n)"];
+const SKIP: &str = "Skip (esc or n)";
+const NOT_ALLOWED: &str = "Not in allowlist: ";
 const HIGHLIGHT: &str = " (enter)";
 const QUESTION_TITLE: &str = "Clarifying Questions";
 const QUESTION_FOOTER: &str = "↑/↓ option · ←/→ question · Space/Enter select · Enter to submit · Esc to skip";
@@ -25,68 +24,80 @@ pub(crate) fn ask_screen(screen: &str) -> Option<Ask> {
     permission(&lines[..=last]).or_else(|| question(&lines[..=last]))
 }
 
-fn rule(line: &str) -> bool {
-    line.chars().count() >= RULE_MIN && line.chars().all(|c| c == RULE)
+/// One box of the screen: its content lines without the borders, and whether a line reaches the right border.
+struct Boxed<'a> {
+    top: usize,
+    text: Vec<&'a str>,
+    cut: bool,
+}
+
+/// The content of a box line, " │ text   │": without the borders, and whether a space is left before the right one.
+fn cell(line: &str) -> Option<(&str, bool)> {
+    let inner = line.trim_start().strip_prefix('│')?.strip_suffix('│')?.strip_prefix(' ')?;
+    Some((inner.trim_end(), inner.ends_with(' ')))
+}
+
+fn boxed<'a>(lines: &[&'a str], bottom: usize) -> Option<Boxed<'a>> {
+    let framed = |line: &str, open: char, close: char| line.trim_start().starts_with(open) && line.ends_with(close);
+    if !framed(lines[bottom], '└', '┘') {
+        return None;
+    }
+    let top = (0..bottom).rev().find(|&i| framed(lines[i], '┌', '┐'))?;
+    let width = lines[bottom].chars().count();
+    if lines[top..=bottom].iter().any(|line| line.chars().count() != width) {
+        return None;
+    }
+    let cells: Vec<(&str, bool)> = lines[top + 1..bottom].iter().map(|line| cell(line)).collect::<Option<_>>()?;
+    Some(Boxed { top, cut: cells.iter().any(|(_, room)| !room), text: cells.iter().map(|(text, _)| *text).collect() })
 }
 
 fn row(line: &str) -> Option<&str> {
-    let text = line.strip_prefix("→ ").or_else(|| line.strip_prefix("  "))?;
+    let text = line.strip_prefix(" → ").or_else(|| line.strip_prefix("   "))?;
     let text = text.strip_suffix(HIGHLIGHT).unwrap_or(text);
     text.ends_with(')').then_some(text)
 }
 
+/// The command in the box above the prompt, "$  <command> in <dir>".
+fn command(above: &Boxed) -> Option<String> {
+    let mut text: Vec<&str> = above.text.clone();
+    text[0] = text.first()?.strip_prefix("$  ")?;
+    let last = text.len() - 1;
+    text[last] = text[last].rsplit_once(" in ")?.0;
+    Some(text.join("\n"))
+}
+
+/// The prompt is the last box on the screen, with nothing after it: a command box above it shows the command,
+/// and its own first line says it again after "Not in allowlist: ".
 fn permission(lines: &[&str]) -> Option<Ask> {
-    let title = lines.iter().rposition(|line| TITLES.contains(line))?;
-    if title == 0 || !rule(lines[title - 1]) {
+    let decision = boxed(lines, lines.len() - 1)?;
+    let title = *decision.text.first()?;
+    if !TITLES.contains(&title) {
         return None;
     }
-    let mut rows = Vec::new();
-    for (i, line) in lines[title + 1..].iter().enumerate() {
-        match row(line) {
-            Some(text) => rows.push(text),
-            None if i == 0 && !line.starts_with("→ ") && !line.starts_with("  ") => {}
-            None => return None,
-        }
+    let first_row = decision.text.iter().position(|line| line.starts_with(" → ") || line.starts_with("   "))?;
+    let rows: Vec<&str> = decision.text[first_row..].iter().map(|line| row(line)).collect::<Option<_>>()?;
+    if !rows.contains(&SKIP) {
+        return None;
     }
+    let above = decision.top.checked_sub(1).and_then(|bottom| boxed(lines, bottom));
+    let (shown, cut, top) = if let Some((command, above)) = above.as_ref().and_then(|a| Some((command(a)?, a))) {
+        (command, above.cut, above.top)
+    } else {
+        let said = decision.text[1..first_row].join("\n");
+        (said.strip_prefix(NOT_ALLOWED).unwrap_or_default().to_string(), decision.cut, decision.top)
+    };
     let mut choices = Vec::new();
-    if rows.iter().any(|text| ALLOWS.contains(text)) {
+    if rows.iter().any(|text| ALLOWS.contains(text)) && !shown.is_empty() && !cut {
         choices.push(Choice::new(ALLOW, &["y"]));
     }
-    if rows.iter().any(|text| DENY_HINTS.iter().any(|hint| text.ends_with(hint))) {
-        choices.push(Choice::new(DENY, &["n"]));
-    }
-    if choices.is_empty() {
-        return None;
-    }
-    let (detail, top) = banner(lines, title - 1);
+    choices.push(Choice::new(DENY, &["q"]));
     Some(Ask {
         question: false,
-        title: lines[title].to_string(),
-        detail,
+        title: title.to_string(),
+        detail: shown,
         choices,
         fingerprint: lines[top..].join("\n"),
     })
-}
-
-/// What the box above the prompt says, and where the prompt's region starts.
-fn banner(lines: &[&str], rule_at: usize) -> (String, usize) {
-    let framed = |line: &str, open: char, close: char| line.starts_with(open) && line.ends_with(close);
-    let Some(bottom) = rule_at.checked_sub(1).filter(|&i| framed(lines[i], '└', '┘')) else {
-        return (String::new(), rule_at);
-    };
-    let Some(top) = (0..bottom).rev().find(|&i| framed(lines[i], '┌', '┐')) else {
-        return (String::new(), rule_at);
-    };
-    let text: Option<Vec<&str>> = lines[top + 1..bottom]
-        .iter()
-        .map(|line| {
-            line.strip_prefix('│')?.strip_suffix('│').map(|text| text.strip_prefix(' ').unwrap_or(text).trim_end())
-        })
-        .collect();
-    match text {
-        Some(text) => (text.join("\n"), top),
-        None => (String::new(), rule_at),
-    }
 }
 
 fn question(lines: &[&str]) -> Option<Ask> {

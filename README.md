@@ -38,7 +38,7 @@ Every supported agent gets the same answering, only where the plugin can read it
 | opencode | `deny` only (see below) | one per option (not "Type your own answer") | `esc`; the digit | live screens (1.19.3) |
 | Gemini CLI | `allow` ("Allow once" only), `deny` | one per option (not the custom row) | the digit | its upstream snapshots (0.64.0), no live screen yet |
 | Grok Build | `allow`, `deny` | `open` only (see below) | the digit | its source, hand-made fixtures, no live screen yet |
-| Cursor CLI | `allow`, `deny` | one per option (one question only) | `y` / `n`; `up`…`down`…`enter` | its source, hand-made fixtures, no live screen yet |
+| Cursor CLI | `allow`, `deny` | one per option (one question only) | `y` / `q`; `up`…`down`…`enter` | permission: live, 2026.01.23; question: source, hand-made fixture |
 
 opencode's permission prompt has no `allow`: its only way to allow is Enter on the highlighted button, and the highlight (a background colour) can be moved by the keyboard or by the mouse hovering over the panel without anything changing in the screen text, so Enter could reject. An `allow` would need cornercase's `read` to expose the highlight (cell styles). Until then the card offers `deny` (Esc, which rejects from any highlight) and `open`. Grok Build's questions get `open` only: a digit is typed as text while its cursor is on the free-text row, and plain text cannot show where the cursor is.
 
@@ -54,7 +54,7 @@ The buttons are offered only when cornercase's screen of the pane still shows th
 - Local windows only: it does not run under `cornercase remote`, which has no socket on the window's machine.
 - "Looking" means your terminal app is the frontmost app. A card for the tab you are looking at is hidden, but the plugin cannot tell a different window or tab of the same terminal app from the one cornercase shows.
 - One notch per Mac: a second window waits and takes over when the first closes.
-- Gemini CLI, Grok Build and Cursor CLI are read from their source and upstream snapshots, not from a live screen; their wording can differ in a newer release, in which case a prompt is simply not recognised and gets `open`. Another agent gets a parser in `src/agents/<agent>/` and a line in `agents::answers` and `agents::ask_screen`.
+- Gemini CLI, Grok Build and Cursor CLI's questions are read from their source and upstream snapshots, not from a live screen; their wording can differ in a newer release, in which case a prompt is simply not recognised and gets `open`. Another agent gets a parser in `src/agents/<agent>/` and a line in `agents::answers` and `agents::ask_screen`.
 
 ## Development
 
