@@ -103,7 +103,8 @@ fn said(decision: &Boxed, first_row: usize) -> Option<Shown> {
 }
 
 /// The prompt is the last box on the screen, with nothing after it: a command box above it shows the command,
-/// and its own first line says it again after "Not in allowlist: ". When both are there they must agree.
+/// and its own first line says it again after "Not in allowlist: ". When both are there they must agree. A box above
+/// is always part of the fingerprint, and one that cannot be parsed leaves only deny.
 fn permission(lines: &[&str]) -> Option<Ask> {
     let decision = boxed(lines, lines.len() - 1)?;
     let title = *decision.text.first()?;
@@ -118,11 +119,12 @@ fn permission(lines: &[&str]) -> Option<Ask> {
     let above = decision.top.checked_sub(1).and_then(|bottom| boxed(lines, bottom));
     let boxed_command = above.as_ref().and_then(|a| Some((command(a)?, a.top)));
     let allow_line = said(&decision, first_row);
+    let top = above.as_ref().map_or(decision.top, |a| a.top);
     let (agree, shown, top) = match (boxed_command, allow_line) {
         (Some((boxed, top)), Some(line)) => (boxed.exact.is_some() && boxed.exact == line.exact, boxed, top),
         (Some((boxed, top)), None) => (boxed.exact.is_some(), boxed, top),
-        (None, Some(line)) => (line.exact.is_some(), line, decision.top),
-        (None, None) => (false, Shown { detail: String::new(), exact: None }, decision.top),
+        (None, Some(line)) => (above.is_none() && line.exact.is_some(), line, top),
+        (None, None) => (false, Shown { detail: String::new(), exact: None }, top),
     };
     let mut choices = Vec::new();
     if rows.iter().any(|text| ALLOWS.contains(text)) && agree && !shown.detail.is_empty() {

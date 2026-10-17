@@ -73,6 +73,16 @@ fn the_fingerprint_holds_both_boxes() {
 }
 
 #[test]
+fn a_command_box_that_cannot_be_parsed_gives_deny_only_and_is_still_fingerprinted() {
+    let wrapped = |dir: &str| ask_screen(&swap(&permission_screen(), " in .", &format!(" in{dir}"))).expect("a prompt");
+    let (one, two) = (wrapped("/a"), wrapped("/b"));
+
+    assert_eq!(choices(&one), vec![("deny", "q".to_string())]);
+    assert!(one.fingerprint.contains("$  touch") && two.fingerprint.contains("in/b"));
+    assert_ne!(one.fingerprint, two.fingerprint);
+}
+
+#[test]
 fn without_the_command_box_the_not_in_allowlist_line_is_the_command() {
     let screen = permission_screen();
     let lines: Vec<&str> = screen.lines().collect();
