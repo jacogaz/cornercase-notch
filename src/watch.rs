@@ -118,6 +118,7 @@ fn rebuild(
     let built = board::build(&panes, tracker, now, |pane| {
         cornercase::screen(pane).map_err(|e| error = Some(format!("could not read pane {pane}: {e}"))).ok()
     });
+    tracker.settle(&built);
     report(failed, error);
     let watching = panes
         .iter()

@@ -469,3 +469,17 @@ fn an_idle_cursor_pane_gets_a_card_only_while_its_screen_shows_a_prompt() {
 
     assert_eq!((kinds(&asking), kinds(&quiet)), (vec![(9, "permission")], vec![]));
 }
+
+#[test]
+fn a_prompt_on_a_polled_pane_cancels_the_done_flash_its_own_working_to_idle_change_started() {
+    let rows = panes(&[r#"{"pane":9,"tab":2,"agent":"cursor","status":"idle","shown":true}"#]);
+    let prompt = include_str!("../../tests/fixtures/cursor/2026.01.23/prompts/permission.txt");
+    let mut tracker = Tracker::default();
+    tracker.observe(&status(9, "working", "idle"), true, false, at(0));
+
+    let asking = build(&rows, &tracker, at(1), |_| Some(prompt.to_string()));
+    tracker.settle(&asking);
+    let denied = build(&rows, &tracker, at(2), |_| Some(String::new()));
+
+    assert_eq!((kinds(&asking), kinds(&denied), tracker.flashing(at(2))), (vec![(9, "permission")], vec![], false));
+}

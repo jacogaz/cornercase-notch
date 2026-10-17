@@ -24,17 +24,18 @@ pub(crate) fn ask_screen(screen: &str) -> Option<Ask> {
     permission(&lines[..=last]).or_else(|| question(&lines[..=last]))
 }
 
-/// One box of the screen: its content lines without the borders, and whether a line reaches the right border.
+/// One box of the screen: its content lines without the borders, and for each how many spaces are left before the
+/// right border.
 struct Boxed<'a> {
     top: usize,
     text: Vec<&'a str>,
-    cut: bool,
+    slack: Vec<usize>,
 }
 
-/// The content of a box line, " │ text   │": without the borders, and whether a space is left before the right one.
-fn cell(line: &str) -> Option<(&str, bool)> {
+/// The content of a box line, " │ text   │": without the borders, and how many spaces are left before the right one.
+fn cell(line: &str) -> Option<(&str, usize)> {
     let inner = line.trim_start().strip_prefix('│')?.strip_suffix('│')?.strip_prefix(' ')?;
-    Some((inner.trim_end(), inner.ends_with(' ')))
+    Some((inner.trim_end(), inner.len() - inner.trim_end().len()))
 }
 
 fn boxed<'a>(lines: &[&'a str], bottom: usize) -> Option<Boxed<'a>> {
@@ -47,8 +48,12 @@ fn boxed<'a>(lines: &[&'a str], bottom: usize) -> Option<Boxed<'a>> {
     if lines[top..=bottom].iter().any(|line| line.chars().count() != width) {
         return None;
     }
-    let cells: Vec<(&str, bool)> = lines[top + 1..bottom].iter().map(|line| cell(line)).collect::<Option<_>>()?;
-    Some(Boxed { top, cut: cells.iter().any(|(_, room)| !room), text: cells.iter().map(|(text, _)| *text).collect() })
+    let cells: Vec<(&str, usize)> = lines[top + 1..bottom].iter().map(|line| cell(line)).collect::<Option<_>>()?;
+    Some(Boxed {
+        top,
+        text: cells.iter().map(|(text, _)| *text).collect(),
+        slack: cells.iter().map(|(_, slack)| *slack).collect(),
+    })
 }
 
 fn row(line: &str) -> Option<&str> {
@@ -57,17 +62,48 @@ fn row(line: &str) -> Option<&str> {
     text.ends_with(')').then_some(text)
 }
 
-/// The command in the box above the prompt, "$  <command> in <dir>".
-fn command(above: &Boxed) -> Option<String> {
+/// A command as the screen shows it: for the card, and exactly (`None` when the screen cannot tell it whole). The
+/// command box leaves one padding column before its border; the decision box's text runs into it.
+struct Shown {
+    detail: String,
+    exact: Option<String>,
+}
+
+/// Lines wrapped by the terminal at the right border, put back together. `full` is the slack of a line that was
+/// wrapped there. A line that stops shorter and is followed by another could be a newline or a space the wrap
+/// swallowed, and a last line that is full could have been cut: neither is exact. A line ending in an ellipsis was
+/// shortened by Cursor itself.
+fn reassemble(text: &[&str], slack: &[usize], full: usize) -> Option<String> {
+    let whole = slack.split_last().is_some_and(|(last, wrapped)| *last > full && wrapped.iter().all(|s| *s == full));
+    let elided = text.iter().any(|line| line.ends_with('…') || line.ends_with("..."));
+    (whole && !elided).then(|| text.concat())
+}
+
+/// The command in the box above the prompt, "$  <command> in <dir>"; continuation lines are indented to match.
+fn command(above: &Boxed) -> Option<Shown> {
     let mut text: Vec<&str> = above.text.clone();
     text[0] = text.first()?.strip_prefix("$  ")?;
     let last = text.len() - 1;
     text[last] = text[last].rsplit_once(" in ")?.0;
-    Some(text.join("\n"))
+    let indented: Option<Vec<&str>> =
+        text.iter().enumerate().map(|(i, line)| if i == 0 { Some(*line) } else { line.strip_prefix("   ") }).collect();
+    let exact = indented.and_then(|text| reassemble(&text, &above.slack, 1));
+    let detail =
+        exact.clone().unwrap_or_else(|| text.iter().map(|line| line.trim_start()).collect::<Vec<_>>().join("\n"));
+    Some(Shown { detail, exact })
+}
+
+/// The command in the decision box's own text: "Not in allowlist: <command>", possibly wrapped.
+fn said(decision: &Boxed, first_row: usize) -> Option<Shown> {
+    let text = &decision.text[1..first_row];
+    let first = text.first()?.strip_prefix(NOT_ALLOWED)?;
+    let lines = [&[first][..], &text[1..]].concat();
+    let exact = reassemble(&lines, &decision.slack[1..first_row], 0);
+    Some(Shown { detail: exact.clone().unwrap_or_else(|| lines.join("\n")), exact })
 }
 
 /// The prompt is the last box on the screen, with nothing after it: a command box above it shows the command,
-/// and its own first line says it again after "Not in allowlist: ".
+/// and its own first line says it again after "Not in allowlist: ". When both are there they must agree.
 fn permission(lines: &[&str]) -> Option<Ask> {
     let decision = boxed(lines, lines.len() - 1)?;
     let title = *decision.text.first()?;
@@ -80,21 +116,23 @@ fn permission(lines: &[&str]) -> Option<Ask> {
         return None;
     }
     let above = decision.top.checked_sub(1).and_then(|bottom| boxed(lines, bottom));
-    let (shown, cut, top) = if let Some((command, above)) = above.as_ref().and_then(|a| Some((command(a)?, a))) {
-        (command, above.cut, above.top)
-    } else {
-        let said = decision.text[1..first_row].join("\n");
-        (said.strip_prefix(NOT_ALLOWED).unwrap_or_default().to_string(), decision.cut, decision.top)
+    let boxed_command = above.as_ref().and_then(|a| Some((command(a)?, a.top)));
+    let allow_line = said(&decision, first_row);
+    let (agree, shown, top) = match (boxed_command, allow_line) {
+        (Some((boxed, top)), Some(line)) => (boxed.exact.is_some() && boxed.exact == line.exact, boxed, top),
+        (Some((boxed, top)), None) => (boxed.exact.is_some(), boxed, top),
+        (None, Some(line)) => (line.exact.is_some(), line, decision.top),
+        (None, None) => (false, Shown { detail: String::new(), exact: None }, decision.top),
     };
     let mut choices = Vec::new();
-    if rows.iter().any(|text| ALLOWS.contains(text)) && !shown.is_empty() && !cut {
+    if rows.iter().any(|text| ALLOWS.contains(text)) && agree && !shown.detail.is_empty() {
         choices.push(Choice::new(ALLOW, &["y"]));
     }
     choices.push(Choice::new(DENY, &["q"]));
     Some(Ask {
         question: false,
         title: title.to_string(),
-        detail: shown,
+        detail: shown.detail,
         choices,
         fingerprint: lines[top..].join("\n"),
     })

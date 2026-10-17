@@ -40,6 +40,8 @@ Every supported agent gets the same answering, only where the plugin can read it
 | Grok Build | `allow`, `deny` | `open` only (see below) | the digit | its source, hand-made fixtures, no live screen yet |
 | Cursor CLI | `allow`, `deny` | one per option (one question only) | `y` / `q`; `up`…`down`…`enter` | permission: live, 2026.01.23; question: source, hand-made fixture |
 
+Cursor's `q` (deny) was verified live on the title `Run this command?`; for its other titles it is inferred from Cursor's source.
+
 opencode's permission prompt has no `allow`: its only way to allow is Enter on the highlighted button, and the highlight (a background colour) can be moved by the keyboard or by the mouse hovering over the panel without anything changing in the screen text, so Enter could reject. An `allow` would need cornercase's `read` to expose the highlight (cell styles). Until then the card offers `deny` (Esc, which rejects from any highlight) and `open`. Grok Build's questions get `open` only: a digit is typed as text while its cursor is on the free-text row, and plain text cannot show where the cursor is.
 
 Never offered, for any agent: a free-text or "Other" row, a row that remembers a choice (always allow, don't ask again, an allowlist, run everything), several questions at once, multiple selection.

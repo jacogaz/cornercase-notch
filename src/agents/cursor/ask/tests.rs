@@ -128,7 +128,67 @@ fn the_known_titles_and_rows_are_read(
     #[case] allow: &str,
     #[case] other_allow: &str,
 ) {
-    assert!(ask_screen(&swap(&swap(&permission_screen(), title, other_title), allow, other_allow)).is_some());
+    let ask = ask_screen(&swap(&swap(&permission_screen(), title, other_title), allow, other_allow)).expect("a prompt");
+
+    assert_eq!(
+        (ask.title.as_str(), choices(&ask)),
+        (other_title, vec![("allow", "y".to_string()), ("deny", "q".to_string())])
+    );
+}
+
+fn long_screen() -> String {
+    fixture!("cursor/2026.01.23/prompts/permission-long.txt").to_string()
+}
+
+fn long_command() -> String {
+    format!("touch /private/tmp/claude-501/ccn/proj/long-{}-{}.txt", "x".repeat(120), "x".repeat(120))
+}
+
+#[test]
+fn a_long_command_wrapped_in_both_places_is_offered_for_allow_reassembled_exactly() {
+    let ask = ask_screen(&long_screen()).expect("a prompt");
+
+    assert_eq!(
+        (ask.detail.clone(), choices(&ask)),
+        (long_command(), vec![("allow", "y".to_string()), ("deny", "q".to_string())])
+    );
+}
+
+#[test]
+fn the_wrapped_not_in_allowlist_line_alone_is_reassembled_the_same() {
+    let screen = long_screen();
+    let lines: Vec<&str> = screen.lines().collect();
+    let cut = lines.iter().position(|l| l.contains("$  touch /private/tmp/claude-501/ccn/proj/long")).expect("box");
+    let screen = [&lines[..cut - 1], &lines[cut + 2..]].concat().join("\n");
+
+    let ask = ask_screen(&screen).expect("a prompt");
+
+    assert_eq!((ask.detail, ask.choices.len()), (long_command(), 2));
+}
+
+#[test]
+fn a_command_box_and_a_not_in_allowlist_line_that_disagree_give_no_allow() {
+    let screen = long_screen();
+    let at = screen.rfind("xxx.txt").expect("the last line");
+    let screen = format!("{}xxy.txt{}", &screen[..at], &screen[at + 7..]);
+
+    assert_eq!(choices(&ask_screen(&screen).expect("a prompt")), [("deny", "q".to_string())]);
+}
+
+#[test]
+fn a_wrapped_line_that_stops_short_of_the_border_could_be_a_newline_so_it_gives_no_allow() {
+    let screen = long_screen().replacen("x │\n │    ", "  │\n │    ", 1);
+
+    assert_eq!(choices(&ask_screen(&screen).expect("a prompt")), [("deny", "q".to_string())]);
+}
+
+#[rstest]
+#[case::unicode("…")]
+#[case::dots("...")]
+fn a_command_line_ending_in_an_ellipsis_gives_no_allow(#[case] mark: &str) {
+    let screen = swap(&permission_screen(), "cu.txt", &format!("cu{mark}"));
+
+    assert_eq!(choices(&ask_screen(&screen).expect("a prompt")), [("deny", "q".to_string())]);
 }
 
 #[test]

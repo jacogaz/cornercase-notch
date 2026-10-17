@@ -60,6 +60,16 @@ impl Tracker {
         self.flashes.retain(|pane, _| open(pane));
     }
 
+    /// A prompt on a polled pane (Cursor, opencode) can itself turn working into idle: once it is on the board, that
+    /// change is not a finished run, so no "Done" is left to appear when the prompt is answered or denied.
+    pub(crate) fn settle(&mut self, built: &Built) {
+        for entry in &built.cards {
+            if matches!(entry.card.kind, Kind::Asks(_)) {
+                self.flashes.remove(&entry.card.pane);
+            }
+        }
+    }
+
     pub(crate) fn flashing(&self, now: SystemTime) -> bool {
         self.flashes.values().any(|at| flash_live(*at, now))
     }
